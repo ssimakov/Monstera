@@ -115,9 +115,10 @@
     const sidebar = document.getElementById('sidebar'), backdrop = document.getElementById('backdrop');
     const folderDialog = document.getElementById('folderDialog'), folderForm = document.getElementById('folderForm'), folderNameInput = document.getElementById('folderNameInput'), dialogTitle = document.getElementById('dialogTitle');
     const publicMode = location.protocol === 'http:' || location.protocol === 'https:';
+    const editorMode = new URLSearchParams(location.search).get('edit') === '1' || location.pathname === '/admin';
     const remoteProjectId = new URLSearchParams(location.search).get('project') || (location.pathname.match(/\/view\/([^/]+)/)||[])[1];
     const apiBase = location.protocol === 'file:' ? 'https://monstera.icu' : location.origin;
-    if(publicMode) document.body.classList.add('public-mode');
+    if(publicMode && !editorMode) document.body.classList.add('public-mode');
     const photos = []; const folders = [{id:'all',name:'Все фото'},{id:'general',name:'Общие'}]; let activeIndex = -1, activeFolder = 'general';
     let image = null, sourceCanvas = null, sourceCtx = null, sourcePixels = null, yaw = 0, pitch = 0, fov = 75, dragging = false, lastX = 0, lastY = 0, velocityYaw = 0, velocityPitch = 0, raf;
     function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=Math.max(320,Math.floor(r.width)); canvas.height=Math.max(240,Math.floor(r.height)); draw(); }
