@@ -5,13 +5,16 @@ export default async (request) => {
   if (request.method === 'OPTIONS') return new Response('', { status: 204, headers: cors });
   if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: cors });
   try {
-    const form = await request.formData();
-    const rawMeta = form.get('meta');
-    const files = form.getAll('files').filter(item => item && typeof item.arrayBuffer === 'function');
-    if (!rawMeta || !files.length) return new Response('Нужны метаданные и хотя бы одно фото', { status: 400, headers: cors });
-    const meta = JSON.parse(rawMeta);
-    if (files.length > 50) return new Response('Слишком много фото в одном проекте', { status: 413, headers: cors });
-    const id = crypto.randomUUID().replaceAll('-', '').slice(0, 20);
+    const isJson = (request.headers.get('content-type') || '').includes('application/json');
+    const payload = isJson ? await request.json() : null;
+    const form = isJson ? null : await request.formData();
+    const rawMeta = isJson ? null : form.get('meta');
+    const files = isJson ? [] : form.getAll('files').filter(item => item && typeof item.arrayBuffer === 'function');
+    if (isJson && (!payload?.id || !payload?.photos?.length)) return new Response('Нужны идентификатор и фото', { status: 400, headers: cors });
+    if (!isJson && (!rawMeta || !files.length)) return new Response('Нужны метаданные и хотя бы одно фото', { status: 400, headers: cors });
+    const meta = isJson ? payload : JSON.parse(rawMeta);
+    if ((meta.photos?.length || files.length) > 50) return new Response('Слишком много фото в одном проекте', { status: 413, headers: cors });
+    const id = isJson ? payload.id : crypto.randomUUID().replaceAll('-', '').slice(0, 20);
     const projectStore = getStore('monstera-projects');
     const assetStore = getStore('monstera-assets');
     const photos = [];
@@ -21,7 +24,8 @@ export default async (request) => {
       await assetStore.set(key, file, { metadata: { contentType: file.type || 'image/jpeg' } });
       photos.push({ name: file.name || `Фото ${i + 1}`, folderId: meta.photos?.[i]?.folderId || 'general', key });
     }
-    await projectStore.setJSON(id, { title: meta.title || 'Monstera 360', folders: meta.folders || [], photos, createdAt: new Date().toISOString() });
+    const storedPhotos = isJson ? meta.photos : photos;
+    await projectStore.setJSON(id, { title: meta.title || 'Monstera 360', folders: meta.folders || [], photos: storedPhotos, createdAt: new Date().toISOString() });
     return Response.json({ id }, { headers: cors });
   } catch (error) {
     console.error(error);
