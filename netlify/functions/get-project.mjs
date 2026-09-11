@@ -6,6 +6,6 @@ export default async (request) => {
   const project = await getStore('monstera-projects').get(id, { type: 'json' });
   if (!project) return new Response('Not Found', { status: 404 });
   const base = new URL('/.netlify/functions/get-photo', request.url);
-  project.photos = (project.photos || []).map(photo => ({ ...photo, url: `${base}?project=${encodeURIComponent(id)}&key=${encodeURIComponent(photo.key)}` }));
+  project.photos = (project.photos || []).map(photo => photo.url ? photo : ({ ...photo, url: `${base}?project=${encodeURIComponent(id)}&key=${encodeURIComponent(photo.key)}` }));
   return Response.json(project, { headers: { 'Cache-Control': 'public, max-age=60' } });
 };
