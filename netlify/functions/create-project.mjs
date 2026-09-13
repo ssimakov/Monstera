@@ -22,7 +22,7 @@ export default async (request) => {
       const file = files[i];
       const key = `${id}/${i}-${encodeURIComponent(file.name || 'photo.jpg')}`;
       await assetStore.set(key, file, { metadata: { contentType: file.type || 'image/jpeg' } });
-      photos.push({ name: file.name || `Фото ${i + 1}`, folderId: meta.photos?.[i]?.folderId || 'general', key });
+      photos.push({ name: file.name || `Фото ${i + 1}`, folderId: meta.photos?.[i]?.folderId || 'general', type: meta.photos?.[i]?.type || null, key });
     }
     const storedPhotos = isJson ? meta.photos : photos;
     await projectStore.setJSON(id, { title: meta.title || 'Monstera 360', folders: meta.folders || [], photos: storedPhotos, createdAt: new Date().toISOString() });
