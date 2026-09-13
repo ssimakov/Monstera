@@ -2,28 +2,64 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Monstera 360</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
   <meta name="description" content="Минималистичный просмотр 360° фотографий без регистрации." />
   <style>
     :root { color-scheme:light; --bg:#f4f7f3; --panel:#ffffffd9; --line:#dfe7df; --text:#17201a; --muted:#718076; --accent:#2e8b57; --accent-soft:#e4f1e8; }
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; height:100dvh; overflow:hidden; background:linear-gradient(145deg,#f8fbf7 0%,#eef4ee 52%,#e6efe7 100%); color:var(--text); font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif; }
+    body { font-family:"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     .app { width:min(1180px,100%); height:100dvh; margin:auto; padding:clamp(8px,2vw,18px); display:flex; flex-direction:column; overflow:hidden; }
-    .brand { display:flex; align-items:center; gap:12px; }
+    .brand { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+    .brand > div { min-width:0; }
+    #photoTitle { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    header { position:relative; }
+    header .brand { justify-content:center; width:100%; padding-inline:145px; }
+    header .brand > div { width:100%; display:flex; align-items:center; justify-content:center; gap:10px; text-align:center; }
+    .monstera-logo { width:34px; height:38px; flex:none; color:var(--accent); }
+    header .badge { position:absolute; right:0; }
     .menu-button { display:none; }
     header { display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:8px; }
     h1 { margin:0; font-size:clamp(28px,4vw,42px); font-weight:700; letter-spacing:-.055em; }
     .sub { display:none; }
-    .badge { border:1px solid #c9dfcf; color:#32734b; background:#ffffffa8; backdrop-filter:blur(18px); border-radius:999px; padding:8px 13px; font-size:13px; white-space:nowrap; }
+    .badge { display:none; }
     .viewer { position:relative; overflow:hidden; flex:1 1 auto; min-height:0; height:auto; border:1px solid #ffffff; border-radius:30px; background:#101512; box-shadow:0 24px 60px #49624b20, inset 0 0 0 1px #00000012; }
     canvas { width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
     canvas.dragging { cursor:grabbing; }
+    .render-image { display:none; width:100%; height:100%; object-fit:contain; background:#0c100d; user-select:none; -webkit-user-drag:none; touch-action:pan-y pinch-zoom; }
+    .viewer.is-fullscreen { position:fixed; inset:0; z-index:30; width:100%; height:100dvh; border:0; border-radius:0; }
+    .viewer:fullscreen { width:100%; height:100%; border:0; border-radius:0; }
+    .corner-fullscreen { right:max(14px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); }
+    .viewer.render-mode canvas { display:none; }
+    .viewer.render-mode .render-image { display:block; }
+    .viewer-empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#8a9389; background:#fff; text-align:center; cursor:pointer; transition:background .2s ease,color .2s ease,transform .2s ease; }
+    .viewer-empty svg { width:58px; height:58px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; transition:transform .2s ease,stroke-width .2s ease; }
+    .viewer-empty:hover { color:#47684d; background:#f3f7f0; }
+    .viewer-empty:hover svg { transform:scale(1.06); stroke-width:1.7; }
+    .viewer-empty:active { transform:scale(.995); background:#eaf1e5; }
+    .viewer-empty:active svg { transform:scale(.97); }
+    .viewer-empty strong { color:#697367; font-size:15px; font-weight:600; }
+    .viewer-empty[hidden] { display:none; }
     .corner-fullscreen { display:block; position:absolute; right:14px; bottom:14px; width:38px; height:38px; padding:0; border:0; border-radius:12px; background:#0008; color:#fff; font-size:20px; line-height:1; backdrop-filter:blur(10px); }
+    .delete-photo { position:absolute; top:max(12px,env(safe-area-inset-top)); right:max(12px,env(safe-area-inset-right)); display:grid; place-items:center; width:34px; height:34px; padding:0; border:1px solid #ffffff40; border-radius:10px; background:#0008; color:#fff; font-size:24px; line-height:1; backdrop-filter:blur(10px); }
+    .delete-photo:hover { color:#fff; background:#a33232; border-color:#a33232; }
+    .delete-photo[hidden], body.public-mode .delete-photo { display:none; }
     .hint { display:none; }
     .hint strong { display:block; font-size:20px; margin-bottom:6px; }
     .hint span { color:#cbd8ce; }
-    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:6px 2px 0; }
+    .toolbar { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); align-items:stretch; gap:9px; padding:6px 2px 0; min-width:0; flex-shrink:0; }
+    .toolbar > button, .toolbar > .upload { display:flex; align-items:center; justify-content:center; min-width:0; width:100%; height:36px; padding:6px; border-radius:10px; text-align:center; }
+    .toolbar > button svg { width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .toolbar > button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    .toolbar .menu-trigger { background:#f9faf7; }
+    .toolbar .menu-trigger svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+    .toolbar .status { display:none; }
+    .toolbar .share-result { grid-column:1 / -1; min-width:0; width:100%; max-width:100%; white-space:nowrap; }
+    .share-result > span, .share-result > button { flex:none; }
     .toolbar #fullscreen { display:none; }
     #publish { background:#17201a; color:#fff; border-color:#17201a; }
     .share-result { display:none; align-items:center; gap:8px; width:100%; padding:10px 12px; border-radius:12px; background:#e4f1e8; color:#245b36; font-size:14px; }
@@ -44,23 +80,39 @@
     .close { display:none; }
     .project-note { color:var(--muted); font-size:14px; margin:0 0 10px; }
     .sidebar > .project-note { display:none; }
+    .photo-list > .project-note { display:none; }
     .add-photos { display:inline-block; text-align:center; background:var(--accent); color:white; border-color:var(--accent); font-weight:650; margin-bottom:10px; padding:8px 12px; font-size:14px; }
     .photo-list { display:flex; flex-direction:row; gap:8px; max-width:100%; overflow-x:auto; overflow-y:hidden; padding:2px 2px 8px; scrollbar-width:thin; }
+    .photo-list { cursor:grab; user-select:none; touch-action:pan-x; }
+    .photo-list.dragging { cursor:grabbing; scroll-behavior:auto; }
+    .photo-list img { pointer-events:none; -webkit-user-drag:none; user-drag:none; }
     .photo-item { display:flex; flex-direction:column; align-items:stretch; gap:5px; min-width:106px; width:106px; text-align:left; padding:6px; border-radius:12px; background:transparent; box-shadow:none; }
     .photo-item:hover, .photo-item.active { background:var(--accent-soft); border-color:#b9d9c1; transform:none; }
     .photo-thumb { width:94px; height:55px; object-fit:cover; border-radius:8px; background:#dfe9e0; flex:none; }
     .photo-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
-    .folder-list { display:flex; gap:7px; overflow-x:auto; padding:0 0 8px; scrollbar-width:none; }
-    .folder-list::-webkit-scrollbar { display:none; }
-    .folder-wrap { display:flex; align-items:center; flex:none; gap:3px; }
-    .folder-button { flex:none; padding:7px 11px; border-radius:999px; font-size:13px; box-shadow:none; background:#ffffffa8; }
-    .folder-button.active { color:#fff; background:var(--accent); border-color:var(--accent); }
-    .folder-rename { padding:4px 6px; border:0; box-shadow:none; background:transparent; color:var(--muted); font-size:13px; }
-    .new-folder { flex:none; padding:7px 11px; border-radius:999px; font-size:13px; box-shadow:none; border-style:dashed; }
+    .thumb-wrap { position:relative; display:block; }
+    .media-badge { position:absolute; right:5px; bottom:5px; padding:3px 7px; border-radius:999px; color:#fff; background:#0d120fb8; backdrop-filter:blur(8px); font-size:10px; font-weight:800; line-height:1; }
+    .folder-list { display:flex; flex-wrap:nowrap; gap:12px; min-width:0; max-width:100%; overflow-x:auto; overflow-y:hidden; padding:2px 2px 9px; scrollbar-width:thin; scrollbar-color:#9cb6a4 transparent; overscroll-behavior-x:contain; }
+    .folder-list::-webkit-scrollbar { height:6px; }
+    .folder-list::-webkit-scrollbar-thumb { background:#9cb6a4; border-radius:9px; }
+    .folder-wrap { position:relative; flex:0 0 176px; min-width:0; }
+    .folder-button { display:block; width:100%; padding:6px; border-radius:16px; font-size:13px; box-shadow:none; background:#ffffffa8; text-align:left; }
+    .folder-button.active { color:var(--text); background:var(--accent-soft); border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+    .folder-button:hover { transform:none; }
+    .folder-cover { display:flex; align-items:center; justify-content:center; width:100%; height:96px; border-radius:11px; overflow:hidden; background:linear-gradient(135deg,#e1ebe2,#f3f6ee); color:#789780; }
+    .folder-cover img { width:100%; height:100%; object-fit:cover; display:block; }
+    .folder-cover svg { width:42px; height:42px; }
+    .folder-caption { display:flex; align-items:center; gap:4px; padding:7px 3px 2px; }
+    .folder-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
+    .folder-count { margin-left:4px; opacity:.65; font-size:11px; }
+    .folder-rename, .folder-delete { position:absolute; top:12px; width:30px; height:30px; padding:0; border:1px solid #fff9; border-radius:9px; box-shadow:none; background:#ffffffe6; color:var(--text); font-size:15px; }
+    .folder-rename { left:12px; }
+    .folder-delete { right:12px; color:#a45b5b; }
+    .new-folder { flex:0 0 140px; padding:12px; border-radius:16px; font-size:13px; box-shadow:none; border-style:dashed; }
     body.public-mode .toolbar { display:none; }
     body.public-mode .side-head, body.public-mode .sidebar > .project-note, body.public-mode .add-photos { display:none; }
     body.public-mode .new-folder { display:none; }
-    body.public-mode .folder-rename { display:none; }
+    body.public-mode .folder-rename, body.public-mode .folder-delete { display:none; }
     .dialog-backdrop { position:fixed; inset:0; z-index:20; display:none; place-items:center; background:#10201745; backdrop-filter:blur(8px); }
     .dialog-backdrop.open { display:grid; }
     .dialog { width:min(360px,calc(100vw - 32px)); padding:20px; border:1px solid #fff; border-radius:20px; background:#f8fbf8f5; box-shadow:0 20px 60px #29402d35; }
@@ -68,50 +120,263 @@
     .dialog input { width:100%; border:1px solid #cbd9ce; border-radius:11px; padding:11px 12px; background:#fff; color:var(--text); font:inherit; outline:none; }
     .dialog input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #2e8b5720; }
     .dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+    .menu-dialog { position:relative; display:flex; align-items:center; justify-content:center; min-height:150px; }
+    .close-menu-dialog { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; border:0; background:transparent; color:var(--muted); box-shadow:none; font-size:25px; }
+    .menu-brand { display:flex; align-items:center; gap:10px; color:var(--accent); font-size:20px; letter-spacing:-.04em; }
+    .menu-brand .monstera-logo { width:38px; height:42px; }
+    .auth-card { width:100%; margin-top:22px; }
+    .auth-card h3 { margin:0 0 10px; font-size:16px; font-weight:650; }
+    .auth-form { display:grid; gap:9px; }
+    .auth-form input { width:100%; border:1px solid #dfe4d8; border-radius:12px; padding:11px 12px; background:#ffffff8c; color:var(--text); font:inherit; outline:none; }
+    .auth-form input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #47734d20; }
+    .auth-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+    .auth-actions button { padding:10px 8px; font-size:13px; }
+    .auth-message { min-height:18px; margin:8px 0 0; color:var(--muted); font-size:11px; }
+    .auth-user { display:none; align-items:center; justify-content:space-between; gap:10px; margin-top:20px; padding:10px; border:1px solid #ffffffb8; border-radius:13px; background:#ffffff66; font-size:12px; }
+    .auth-user.open { display:flex; }
+    .auth-user span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     body.public-mode .sidebar { padding-top:10px; }
     body.public-mode .corner-fullscreen { display:block; }
-    @media (max-width:650px) { .app { padding:8px; } header { align-items:flex-start; margin-bottom:6px; } .badge { display:none; } .viewer { border-radius:16px; } .status { width:100%; margin-left:0; } .toolbar { padding-top:5px; } }
+    body { background:#f1f3ef; }
+    .app { width:min(1480px,100%); padding:14px 18px 12px; gap:10px; }
+    header { min-height:42px; margin-bottom:0; }
+    h1 { font-size:20px; letter-spacing:-.04em; }
+    .toolbar { padding:7px; border:1px solid #1c2d2214; border-radius:16px; background:#ffffffd1; box-shadow:0 7px 24px #1d2d230d; }
+    .viewer { border-radius:24px; box-shadow:0 14px 40px #131f171f; }
+    .sidebar { min-width:0; max-height:48dvh; overflow-y:auto; flex-shrink:0; padding:10px 12px 9px; border:1px solid #1c2d2214; border-radius:18px; background:#ffffffe0; box-shadow:0 7px 24px #1d2d230d; }
+    .side-head { margin-bottom:7px; }
+    .folder-list { margin-bottom:1px; }
+    .folder-button { background:#f5f6f3; }
+    .photo-list { gap:10px; padding-bottom:3px; }
+    .photo-item { min-width:150px; width:150px; padding:6px; border-radius:14px; }
+    .photo-thumb { width:136px; height:78px; border-radius:10px; display:block; }
+    .photo-name { display:block; padding:2px 3px 0; }
+    @media (max-width:650px) { .app { padding:8px; gap:7px; } header { align-items:flex-start; margin-bottom:0; min-height:34px; } h1 { font-size:18px; } .badge { display:none; } .viewer { border-radius:16px; } .status { width:100%; margin-left:0; } .toolbar { padding:5px; } .sidebar { padding:7px; } .photo-item { min-width:124px; width:124px; } .photo-thumb { width:110px; height:64px; } }
+    @media (orientation:portrait) {
+      .folder-list { gap:4px; }
+      .folder-wrap, .new-folder { flex:0 0 calc((100% - 20px) / 6); min-width:0; }
+      .folder-button { padding:6px 3px; border-radius:10px; }
+      .folder-cover { height:96px; border-radius:7px; }
+      .folder-cover svg { width:min(32px,100%); }
+      .folder-caption { padding:7px 0 2px; gap:0; }
+      .folder-label { font-size:13px; }
+      .folder-count { display:none; }
+      .folder-rename, .folder-delete { top:6px; width:24px; height:24px; font-size:12px; }
+      .folder-rename { left:5px; }
+      .folder-delete { right:5px; }
+      .new-folder { padding:4px; font-size:11px; overflow-wrap:anywhere; }
+    }
+    @media (orientation:landscape) and (max-height:600px) {
+      .app { display:grid; width:100%; grid-template-columns:minmax(0,1fr) 210px; grid-template-rows:auto auto minmax(0,1fr); gap:6px; padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left)); }
+      header { grid-column:1 / -1; min-height:24px; }
+      h1 { font-size:16px; }
+      .badge, .info, .status, .side-head { display:none; }
+      .toolbar { grid-column:1; grid-row:2; padding:4px; gap:5px; }
+      .toolbar button, .toolbar .upload { padding:5px 9px; font-size:12px; }
+      .viewer { grid-column:1; grid-row:3; width:100%; height:100%; border-radius:14px; }
+      .sidebar, body.public-mode .sidebar { grid-column:2; grid-row:2 / 4; min-height:0; min-width:0; max-height:none; overflow:auto; padding:6px; }
+      .folder-list { position:sticky; top:0; z-index:1; background:#f8faf7; }
+      .photo-list { flex-wrap:wrap; overflow:visible; gap:5px; }
+      .photo-item { min-width:88px; width:88px; padding:4px; }
+      .photo-thumb { width:78px; height:47px; }
+      .photo-name { font-size:11px; }
+      .add-photos { font-size:12px; padding:5px 8px; margin-bottom:5px; }
+      body.public-mode .viewer { grid-row:2 / 4; }
+      .share-result { min-width:0; padding:4px; }
+    }
+    .folder-button { aspect-ratio:1; display:flex; flex-direction:column; gap:4px; }
+    .folder-cover { flex:1; min-height:0; height:auto; }
+    .folder-caption { flex:none; width:100%; padding:0 2px; }
+    .folder-cover svg { max-height:75%; }
+    .new-folder { flex-basis:176px; aspect-ratio:1; align-self:flex-start; }
+    @media (orientation:portrait) {
+      .folder-button { padding:3px; gap:2px; }
+      .folder-caption { padding:0; line-height:14px; }
+      .folder-label { font-size:10px; }
+      .new-folder { flex-basis:calc((100% - 20px) / 6); }
+      .folder-rename, .folder-delete { top:4px; width:20px; height:20px; }
+      .folder-rename { left:4px; }
+      .folder-delete { right:4px; }
+    }
+    #photoTitle { font-size:24px; }
+    @media (max-width:650px) {
+      header .brand { padding-inline:0; }
+      #photoTitle { font-size:22px; }
+    }
+    @media (orientation:landscape) and (max-height:600px) {
+      header .brand { padding-inline:0; }
+      #photoTitle { font-size:20px; }
+    }
+    .viewer.is-fullscreen .corner-fullscreen, .viewer:fullscreen .corner-fullscreen { right:max(14px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); }
+    /* Monstera — quiet gallery surfaces, compact controls, clear selection. */
+    :root { --bg:#f5f5f2; --panel:#fff; --line:#e3e5df; --text:#242923; --muted:#7a8278; --accent:#47684d; --accent-soft:#edf2e8; }
+    body { background:var(--bg); -webkit-font-smoothing:antialiased; }
+    .app { gap:10px; }
+    header { flex-shrink:0; }
+    #photoTitle { font-weight:600; letter-spacing:-.055em; }
+    .monstera-logo { color:#47684d; }
+    .badge { padding:6px 10px; border-color:var(--line); color:var(--muted); background:transparent; font-size:10px; font-weight:500; letter-spacing:.02em; }
+    .toolbar { padding:4px; gap:5px; background:#ebede7; border:1px solid #e0e3da; border-radius:14px; box-shadow:none; }
+    .toolbar > button { height:36px; border:1px solid transparent; background:#f9faf7; color:var(--text); box-shadow:0 1px 2px #24301e09; }
+    .toolbar #addPhotos { color:#f9fbf5; background:var(--accent); }
+    .toolbar #publish { color:#fff; background:#262d27; border-color:#262d27; }
+    .toolbar .status { font-size:10px; padding:0 8px; color:#717b6d; letter-spacing:.01em; }
+    button, .upload { transition:background .18s ease,border-color .18s ease,box-shadow .18s ease; }
+    button:hover, .upload:hover { transform:none; }
+    button:focus-visible, .upload:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    .viewer { border:1px solid #20291f; border-radius:22px; background:#151a16; box-shadow:0 10px 28px #202b2012; }
+    .render-image { background:#151a16; }
+    .corner-fullscreen, .delete-photo { border:1px solid #ffffff24; background:#202620b3; box-shadow:0 3px 12px #0002; }
+    .corner-fullscreen:hover { color:white; background:#354134e6; border-color:#ffffff50; }
+    .sidebar, body.public-mode .sidebar { background:#fff; border:1px solid var(--line); box-shadow:0 3px 14px #27321e05; border-radius:20px; }
+    .side-head { margin-bottom:8px; }
+    .side-head h2 { font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+    .folder-button { background:#fff; border-color:transparent; box-shadow:none; }
+    .folder-cover { background:#edf0e9; color:#8b9b80; }
+    .folder-button.active { background:var(--accent-soft); border-color:#9aac8d; box-shadow:none; }
+    .folder-button.active .folder-label { color:#344f35; }
+    .folder-count { font-size:10px; }
+    .folder-rename, .folder-delete { border:1px solid #ffffff70; background:#ffffffe0; color:#44503f; backdrop-filter:blur(12px); }
+    .folder-delete { color:#a45b5b; }
+    .new-folder { color:#7e8976; border:1px dashed #cdd4c6; background:#f8faf5; }
+    .photo-card { position:relative; flex:none; }
+    .photo-rename, .photo-delete { position:absolute; top:11px; width:28px; height:28px; padding:0; display:grid; place-items:center; border:1px solid #ffffff80; border-radius:8px; color:#44503f; background:#ffffffe0; backdrop-filter:blur(12px); box-shadow:none; }
+    .photo-rename { left:11px; }
+    .photo-delete { right:11px; color:#a45b5b; }
+    .photo-rename svg, .photo-delete svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    body.public-mode .photo-rename, body.public-mode .photo-delete { display:none; }
+    .photo-item { background:#fff; border-color:transparent; }
+    .photo-item.active { background:#f0f3ec; border-color:#acbca0; }
+    .photo-name { font-size:11px; font-weight:500; color:#687160; }
+    .photo-item.active .photo-name { color:#293d27; }
+    .media-badge { padding:4px 6px; border:1px solid #ffffff24; background:#1c261bbf; font-size:9px; font-weight:600; letter-spacing:.02em; }
+    .folder-list, .photo-list, .sidebar { scrollbar-width:thin; scrollbar-color:#cad2c4 transparent; }
+    .folder-list::-webkit-scrollbar-thumb { background:#cad2c4; }
+    .photo-list:not(:has(.photo-item)) { display:none; }
+    .dialog-backdrop { background:#1c241d59; backdrop-filter:blur(12px); padding:12px; overflow:auto; }
+    .dialog { background:#fafbf8; border-color:#ffffffa0; border-radius:24px; box-shadow:0 24px 80px #19231630; max-height:100%; overflow:auto; }
+    .dialog h3 { font-size:19px; font-weight:600; }
+    .dialog input { border-color:#dfe4d8; border-radius:12px; padding:12px; }
+    .dialog .upload { background:var(--accent); border-color:var(--accent); box-shadow:none; }
+    .share-result { background:var(--accent-soft); color:var(--accent); font-size:11px; }
+    @media (hover:hover) {
+      .folder-button:hover, .photo-item:hover { background:#f5f7f1; border-color:#c5cfbb; }
+      .toolbar #addPhotos:hover { background:#38583e; }
+      .toolbar #publish:hover { background:#3b453b; }
+      .toolbar #reset:hover { background:white; border-color:#cbd3c5; }
+    }
+    @media (max-width:650px) {
+      .app { gap:7px; }
+      .viewer { border-radius:16px; }
+      .sidebar { border-radius:14px; }
+    }
+    @media (orientation:landscape) and (max-height:600px) {
+      .app { gap:6px; }
+      .folder-list { background:#fff; }
+      .viewer { border-radius:14px; }
+    }
+    @media (prefers-reduced-motion:reduce) { button, .upload { transition:none; } }
+    /* iOS glass interface */
+    :root { --bg:#edf2ed; --panel:#ffffff66; --line:#ffffffa6; --text:#1d241f; --muted:#78837a; --accent:#3d7650; --accent-soft:#e7f1e8; }
+    body { position:relative; background:radial-gradient(circle at 12% 0%,#ffffff 0,#edf4ee 40%,#dce9df 100%); }
+    body::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(circle at 8% 28%,#b6d9be99 0,transparent 27%),radial-gradient(circle at 92% 75%,#c8d3f080 0,transparent 30%),radial-gradient(circle at 58% 5%,#fff9 0,transparent 22%); filter:blur(10px); }
+    .app { padding-top:max(12px,env(safe-area-inset-top)); padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+    .toolbar, .sidebar {
+      background:#ffffff4d !important;
+      border:1px solid #ffffffb8;
+      backdrop-filter:blur(30px) saturate(165%);
+      -webkit-backdrop-filter:blur(30px) saturate(165%);
+      box-shadow:0 14px 34px #50655424, inset 0 1px #ffffffd0, inset 0 -1px #8aa58a22;
+    }
+    .toolbar { border-radius:18px; padding:5px; }
+    .toolbar > button, .toolbar > .upload {
+      border:1px solid #ffffffb0;
+      background:#ffffff59;
+      box-shadow:0 2px 8px #43574410, inset 0 1px #ffffffb8;
+      color:#304034;
+    }
+    .toolbar #addPhotos { color:#f8fff8; background:#438057cf; border-color:#ffffff70; }
+    .toolbar #publish { color:#fff; background:#202a22c9; border-color:#ffffff34; }
+    .toolbar #reset:hover, .toolbar .menu-trigger:hover { background:#ffffffc7; }
+    .viewer { border:1px solid #ffffffd0; box-shadow:0 18px 50px #344a391f, inset 0 1px #ffffff66; }
+    .sidebar { border-radius:22px; }
+    .folder-button, .photo-item { border:1px solid #ffffff80; background:#ffffff66; box-shadow:0 3px 10px #5268520d, inset 0 1px #ffffff80; backdrop-filter:blur(14px); }
+    .folder-button.active, .photo-item.active { background:#e8f3e8b8; border-color:#a8c9ad; box-shadow:0 3px 12px #47734d18, inset 0 1px #ffffffb8; }
+    .folder-cover { background:#e5ede5a6; border:1px solid #ffffff80; }
+    .new-folder { background:#ffffff4d; border-color:#ffffffc2; }
+    .folder-rename, .folder-delete, .photo-rename, .photo-delete { background:#ffffffb8; border-color:#ffffffd0; box-shadow:0 2px 8px #43574415; }
+    .dialog { background:#f8fbf8cf; border:1px solid #ffffffd0; backdrop-filter:blur(28px) saturate(135%); -webkit-backdrop-filter:blur(28px) saturate(135%); }
+    .dialog input { background:#ffffff8c; border-color:#ffffffcf; box-shadow:inset 0 1px #ffffffaa; }
+    .viewer-empty { background:#ffffffe8; }
+    .viewer-empty:hover { background:#f2f8f2ed; }
+    @media (prefers-reduced-transparency:reduce) {
+      .toolbar, .sidebar, .dialog { backdrop-filter:none; -webkit-backdrop-filter:none; background:#fff; }
+    }
+    .photo-item.panorama-item { border:1px solid transparent; }
+    .photo-item.panorama-item .media-badge { left:50%; right:auto; top:50%; bottom:auto; transform:translate(-50%,-50%); padding:10px 12px; background:#edf1e9; border:1px solid #d4ddd0; color:#52604d; font-size:16px; font-weight:700; letter-spacing:.02em; box-shadow:none; }
+    .photo-item.panorama-item .photo-name { color:#687160; font-weight:500; }
+    .photo-item.panorama-item .thumb-wrap { height:78px; border-radius:10px; background:#edf1e9; }
+    .photo-item.panorama-item .photo-thumb { display:none; }
+    .panorama-indicator { position:absolute; top:max(12px,env(safe-area-inset-top)); left:max(12px,env(safe-area-inset-left)); padding:7px 12px; border:1px solid #c1dba780; border-radius:999px; color:#eaffdf; background:#294324cf; backdrop-filter:blur(12px); font-size:12px; font-weight:650; pointer-events:none; }
+    .panorama-indicator[hidden] { display:none; }
+    @media (orientation:landscape) and (max-height:600px) {
+      .photo-item.panorama-item .thumb-wrap { height:47px; }
+      .photo-item.panorama-item .media-badge { padding:6px 8px; font-size:12px; }
+    }
   </style>
 </head>
 <body>
   <main class="app">
-    <header>
-      <div class="brand"><button id="menuButton" class="menu-button" type="button" aria-label="Открыть меню проекта">☰</button><div><h1>Monstera 360</h1></div></div>
+    <header style="display:none">
+      <div class="brand"><button id="menuButton" class="menu-button" type="button" aria-label="Открыть меню проекта">☰</button><div>
+        <svg class="monstera-logo" viewBox="0 0 48 54" aria-label="Monstera" role="img">
+          <path fill="currentColor" fill-rule="evenodd" d="M25 45C13 43 4 33 4 22 4 10 13 3 22 7L26 11C31 2 42 5 45 16 48 29 37 40 25 45ZM14 13C11 12 10 16 12 19L17 24C19 25 20 23 18 20ZM35 12C38 11 39 14 37 17L31 23C29 25 27 23 29 20ZM10 25C8 24 8 28 11 31L17 35C20 36 21 34 18 32ZM39 24C41 23 41 27 37 31L31 35C28 37 27 34 30 32Z"/>
+          <path d="M25 19C23 31 23 41 20 51" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="m4 18 8 6-8-2m3 11 7 3-4 1m35-17-8 6 7-2m-5 12-6 3 3 1" fill="none" stroke="#f1f3ef" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <h1 id="photoTitle">Monstera 360</h1>
+      </div></div>
       <div class="badge">без регистрации</div>
     </header>
     <div class="toolbar">
-      <label class="upload" for="file">Загрузить фото</label>
+      <button id="topMenu" class="menu-trigger" type="button" title="Меню" aria-label="Открыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <button id="addPhotos" class="upload" type="button" title="Добавить фото" aria-label="Добавить фото"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
       <input id="file" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple />
-      <button id="reset" type="button">Сбросить вид</button>
+      <button id="reset" type="button" title="Сбросить вид" aria-label="Сбросить вид"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></svg></button>
       <button id="fullscreen" type="button">На весь экран</button>
-      <button id="publish" type="button">Опубликовать</button>
+      <button id="publish" type="button" title="Опубликовать проект" aria-label="Опубликовать проект"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8"/></svg></button>
       <span id="status" class="status">Файл не выбран</span>
       <div id="shareResult" class="share-result"><span>Ссылка готова:</span><a id="shareLink" target="_blank" rel="noopener"></a><button id="copyShare" type="button">Копировать</button></div>
     </div>
     <section class="viewer" aria-label="Просмотр 360-градусной фотографии">
       <canvas id="canvas"></canvas>
+      <img id="renderImage" class="render-image" alt="Обычный рендер помещения" />
+      <div id="viewerEmpty" class="viewer-empty">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="4"/><circle cx="17" cy="19" r="3"/><path d="m9 35 10-10 7 7 5-5 8 8"/></svg>
+        <strong>Добавить изображение</strong>
+      </div>
+      <span id="panoramaIndicator" class="panorama-indicator" hidden aria-label="Интерактивная панорама, можно вращать">↔ 360°</span>
+      <button id="deletePhoto" class="delete-photo" type="button" title="Удалить фото из проекта" aria-label="Удалить фото из проекта" hidden>×</button>
       <div id="hint" class="hint"></div>
       <button id="cornerFullscreen" class="corner-fullscreen" type="button" aria-label="На весь экран">⛶</button>
     </section>
     <div class="info"></div>
     <aside id="sidebar" class="sidebar" aria-label="Фото проекта">
-      <div class="side-head"><h2>Фото проекта</h2><button id="closeMenu" class="close" type="button" aria-label="Закрыть меню">×</button></div>
+      <div class="side-head"><h2>Помещения</h2><button id="closeMenu" class="close" type="button" aria-label="Закрыть меню">×</button></div>
       <div id="folderList" class="folder-list"></div>
-      <p class="project-note">Загрузи несколько панорам и переключайся между ними в одном проекте.</p>
-      <label class="upload add-photos" for="projectFiles">＋ Добавить фото</label>
-      <input id="projectFiles" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple />
-      <div id="photoList" class="photo-list"><div class="project-note">Пока нет загруженных фото</div></div>
+      <div id="photoList" class="photo-list"></div>
     </aside>
   </main>
   <div id="backdrop" class="backdrop"></div>
   <div id="folderDialog" class="dialog-backdrop"><form id="folderForm" class="dialog"><h3 id="dialogTitle">Новое помещение</h3><input id="folderNameInput" autocomplete="off" placeholder="Например, Гостиная" /><div class="dialog-actions"><button id="cancelFolder" type="button">Отмена</button><button class="upload" type="submit">Сохранить</button></div></form></div>
+  <div id="menuDialog" class="dialog-backdrop"><div class="dialog menu-dialog"><button id="closeMenuDialog" class="close-menu-dialog" type="button" aria-label="Закрыть">×</button><div class="menu-brand"><svg class="monstera-logo" viewBox="0 0 48 54" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M25 45C13 43 4 33 4 22 4 10 13 3 22 7L26 11C31 2 42 5 45 16 48 29 37 40 25 45ZM14 13C11 12 10 16 12 19L17 24C19 25 20 23 18 20ZM35 12C38 11 39 14 37 17L31 23C29 25 27 23 29 20ZM10 25C8 24 8 28 11 31L17 35C20 36 21 34 18 32ZM39 24C41 23 41 27 37 31L31 35C28 37 27 34 30 32Z"/><path d="M25 19C23 31 23 41 20 51" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg><strong>Monstera 360</strong></div><div class="auth-card"><h3 id="authTitle">Вход в аккаунт</h3><form id="authForm" class="auth-form"><input id="authEmail" type="text" autocomplete="username" placeholder="Логин" pattern="[A-Za-z0-9_.-]{3,32}" required /><input id="authPassword" type="password" autocomplete="current-password" placeholder="Пароль" minlength="6" required /><div class="auth-actions"><button type="submit">Войти</button><button id="authSignup" type="button">Регистрация</button></div></form><p id="authMessage" class="auth-message"></p><div id="authUser" class="auth-user"><span id="authUserEmail"></span><button id="authLogout" type="button">Выйти</button></div></div></div></div>
   <div id="publishDialog" class="dialog-backdrop"><form id="publishForm" class="dialog"><h3>Опубликовать проект</h3><p class="project-note">Ссылка будет только для просмотра. Получатель не сможет добавлять, удалять или переименовывать фото.</p><input id="projectTitle" autocomplete="off" placeholder="Название проекта" value="Monstera 360" /><div class="dialog-actions"><button id="cancelPublish" type="button">Отмена</button><button class="upload" type="submit">Создать ссылку</button></div></form></div>
   <script>
     const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
-    const viewer = document.querySelector('.viewer'), fileInput = document.getElementById('file');
-    const hint = document.getElementById('hint'), status = document.getElementById('status');
+    const viewer = document.querySelector('.viewer'), renderImage = document.getElementById('renderImage'), fileInput = document.getElementById('file');
+    const hint = document.getElementById('hint'), status = document.getElementById('status'), viewerEmpty = document.getElementById('viewerEmpty');
     const shareResult = document.getElementById('shareResult'), shareLink = document.getElementById('shareLink');
-    const projectFiles = document.getElementById('projectFiles'), photoList = document.getElementById('photoList'), folderList = document.getElementById('folderList');
+    const photoList = document.getElementById('photoList'), folderList = document.getElementById('folderList');
     const sidebar = document.getElementById('sidebar'), backdrop = document.getElementById('backdrop');
     const folderDialog = document.getElementById('folderDialog'), folderForm = document.getElementById('folderForm'), folderNameInput = document.getElementById('folderNameInput'), dialogTitle = document.getElementById('dialogTitle');
     const publicMode = location.protocol === 'http:' || location.protocol === 'https:';
@@ -121,11 +386,12 @@
     const shareBase = 'https://monstera.icu';
     const supabaseUrl = 'https://sdydtaqhzsmbqybcowxb.supabase.co';
     const supabasePublishableKey = 'sb_publishable_3m_K_HnurU6zwO_zySdNtg_qeUW38IJ';
-    if(publicMode && !editorMode) document.body.classList.add('public-mode');
-    const photos = []; const folders = [{id:'all',name:'Все фото'},{id:'general',name:'Общие'}]; let activeIndex = -1, activeFolder = 'general';
+    if((publicMode||remoteProjectId) && !editorMode) document.body.classList.add('public-mode');
+    const photos = []; const folders = [{id:'general',name:'Новое помещение'}]; let activeIndex = -1, activeFolder = 'general';
     let image = null, sourceCanvas = null, sourceCtx = null, sourcePixels = null, yaw = 0, pitch = 0, fov = 75, dragging = false, lastX = 0, lastY = 0, velocityYaw = 0, velocityPitch = 0, raf;
-    function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=Math.max(320,Math.floor(r.width)); canvas.height=Math.max(240,Math.floor(r.height)); draw(); }
+    function resize(){ const w=Math.max(1,viewer.clientWidth),h=Math.max(1,viewer.clientHeight); if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;draw();} }
     addEventListener('resize', resize);
+    new ResizeObserver(resize).observe(viewer);
     function draw(){ render(); }
     // Use a fast equirectangular strip renderer for smooth interaction.
     function render(){
@@ -150,26 +416,210 @@
       if(!dragging){ yaw+=velocityYaw; pitch+=velocityPitch; pitch=Math.max(-1.2,Math.min(1.2,pitch)); velocityYaw*=.9; velocityPitch*=.9; if(Math.abs(velocityYaw)<.00005)velocityYaw=0; if(Math.abs(velocityPitch)<.00005)velocityPitch=0; }
       render(); raf=requestAnimationFrame(loop);
     }
-    function selectPhoto(index){ const photo=photos[index]; if(!photo)return; activeIndex=index; image=photo.image; sourcePixels=photo.pixels; hint.hidden=true; status.textContent=photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight; yaw=0;pitch=0;fov=75; renderList(); }
+    function isPanoramaImage(im){ const ratio=im.naturalWidth/im.naturalHeight; return Math.abs(ratio-2)/2<=.030001; }
+    function visiblePhotos(){ return photos.map((photo,index)=>({photo,index})).filter(item=>item.photo.folderId===activeFolder).sort((a,b)=>(a.photo.type==='panorama'?0:1)-(b.photo.type==='panorama'?0:1)||a.index-b.index); }
+    function clearViewer(){ activeIndex=-1; image=null; sourcePixels=null; renderImage.removeAttribute('src'); viewer.classList.remove('render-mode'); viewerEmpty.hidden=false; document.getElementById('deletePhoto').hidden=true; ctx.clearRect(0,0,canvas.width,canvas.height); }
+    function selectPhoto(index){ const photo=photos[index]; if(!photo)return; activeIndex=index; image=photo.image; viewerEmpty.hidden=true; hint.hidden=true; yaw=0;pitch=0;fov=75;velocityYaw=0;velocityPitch=0;if(photo.type==='panorama'){viewer.classList.remove('render-mode');renderImage.removeAttribute('src');sourcePixels=photo.pixels;status.textContent='360° · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}else{sourcePixels=null;renderImage.src=photo.url;viewer.classList.add('render-mode');status.textContent='Рендер · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}renderList(); }
+    const deletePhotoButton=document.getElementById('deletePhoto');
+    function syncPhotoHeading(){
+      deletePhotoButton.hidden=(publicMode&&!editorMode)||activeIndex<0;
+      document.getElementById('panoramaIndicator').hidden=photos[activeIndex]?.type!=='panorama';
+    }
+    new MutationObserver(syncPhotoHeading).observe(photoList,{childList:true});
+    function deleteCurrentPhoto(){
+      if((publicMode&&!editorMode)||activeIndex<0)return;
+      const visible=visiblePhotos(),position=visible.findIndex(item=>item.index===activeIndex);
+      const [removed]=photos.splice(activeIndex,1);
+      clearViewer();
+      renderFolders();
+      const remaining=visiblePhotos();
+      if(remaining.length)selectPhoto(remaining[Math.max(0,Math.min(position,remaining.length-1))].index);
+      else{renderList();status.textContent='Фото удалено';}
+      if(removed.url.startsWith('blob:'))URL.revokeObjectURL(removed.url);
+      shareResult.classList.remove('open');
+    }
+    deletePhotoButton.onclick=deleteCurrentPhoto;
+    let editingPhoto=null;
+    function openPhotoDialog(photo){
+      if(publicMode&&!editorMode)return;
+      editingPhoto=photo;editingFolderId=null;
+      dialogTitle.textContent='Переименовать фото';
+      folderNameInput.value=photo.file.name.replace(/\.[^.]+$/,'');
+      folderDialog.classList.add('open');
+      setTimeout(()=>{folderNameInput.focus();folderNameInput.select();},50);
+    }
     let editingFolderId=null;
     function openFolderDialog(folderId=null){editingFolderId=folderId;const folder=folders.find(item=>item.id===folderId);dialogTitle.textContent=folder?'Переименовать помещение':'Новое помещение';folderNameInput.value=folder?folder.name:'';folderDialog.classList.add('open');setTimeout(()=>folderNameInput.focus(),50);}
-    function closeFolderDialog(){folderDialog.classList.remove('open');editingFolderId=null;}
-    function renderFolders(){ folderList.innerHTML=''; folders.forEach(folder=>{const wrap=document.createElement('div');wrap.className='folder-wrap';const button=document.createElement('button');button.className='folder-button'+(folder.id===activeFolder?' active':'');button.type='button';button.textContent=folder.name;button.onclick=()=>{activeFolder=folder.id;renderFolders();renderList();};wrap.appendChild(button);if(folder.id!=='all'){const rename=document.createElement('button');rename.className='folder-rename';rename.type='button';rename.title='Переименовать';rename.textContent='✎';rename.onclick=()=>openFolderDialog(folder.id);wrap.appendChild(rename);}folderList.appendChild(wrap);}); const add=document.createElement('button');add.className='new-folder';add.type='button';add.textContent='＋ Папка';add.onclick=()=>openFolderDialog();folderList.appendChild(add); }
-    function renderList(){ photoList.innerHTML=''; const visible=photos.map((photo,index)=>({photo,index})).filter(item=>activeFolder==='all'||item.photo.folderId===activeFolder); if(!visible.length){photoList.innerHTML='<div class="project-note">Нет фото в этой папке</div>';return;} visible.forEach(({photo,index})=>{const button=document.createElement('button');button.className='photo-item'+(index===activeIndex?' active':'');button.type='button';button.innerHTML='<img class="photo-thumb" alt=""><span class="photo-name"></span>';button.querySelector('img').src=photo.url;button.querySelector('.photo-name').textContent=photo.file.name;button.onclick=()=>{selectPhoto(index);closeMenu();};photoList.appendChild(button);}); }
-    function addFile(file){ if(!file||!file.type.startsWith('image/'))return; const url=URL.createObjectURL(file); loadPhoto({file,url,folderId:activeFolder==='all'?'general':activeFolder}); }
-    function loadPhoto(photo){ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>{const source=document.createElement('canvas');source.width=im.naturalWidth;source.height=im.naturalHeight;const sourceContext=source.getContext('2d');sourceContext.drawImage(im,0,0);photo.image=im;photo.pixels=sourceContext.getImageData(0,0,im.naturalWidth,im.naturalHeight).data;photos.push(photo);if(activeIndex<0)selectPhoto(0);else renderList();}; im.onerror=()=>{status.textContent='Не удалось загрузить '+photo.file.name;}; im.src=photo.url; }
-    function addFiles(files){Array.from(files||[]).forEach(addFile);}
-    fileInput.onchange=e=>addFiles(e.target.files);
-    projectFiles.onchange=e=>{addFiles(e.target.files);projectFiles.value='';};
+    function closeFolderDialog(){folderDialog.classList.remove('open');editingFolderId=null;editingPhoto=null;}
+    function activateFolder(folderId){activeFolder=folderId;renderFolders();const visible=visiblePhotos();if(visible.length)selectPhoto(visible[0].index);else{clearViewer();renderList();status.textContent='В помещении пока нет изображений';}}
+    function deleteFolder(folder){
+      if(publicMode&&!editorMode||folders.length<=1)return;
+      if(!confirm('Удалить помещение «'+folder.name+'» и все его изображения?'))return;
+      photos.filter(photo=>photo.folderId===folder.id).forEach(photo=>{if(photo.url.startsWith('blob:'))URL.revokeObjectURL(photo.url);});
+      const index=folders.findIndex(item=>item.id===folder.id);folders.splice(index,1);
+      if(activeFolder===folder.id)activeFolder=folders[Math.max(0,index-1)].id;
+      clearViewer();renderFolders();const visible=visiblePhotos();if(visible.length)selectPhoto(visible[0].index);else renderList();
+      for(let i=photos.length-1;i>=0;i--)if(photos[i].folderId===folder.id)photos.splice(i,1);
+      renderFolders();renderList();shareResult.classList.remove('open');
+    }
+    function renderFolders(){
+      const scrollLeft=folderList.scrollLeft;
+      folderList.replaceChildren();
+      folders.forEach(folder=>{
+        const contents=photos.filter(photo=>photo.folderId===folder.id);
+        const coverPhoto=contents.find(photo=>photo.type==='render'&&!isPanoramaImage(photo.image));
+        const wrap=document.createElement('div');wrap.className='folder-wrap';
+        const button=document.createElement('button');button.className='folder-button'+(folder.id===activeFolder?' active':'');
+        button.type='button';button.title=folder.name;button.setAttribute('aria-pressed',String(folder.id===activeFolder));
+        const cover=document.createElement('span');cover.className='folder-cover';
+        if(coverPhoto){
+          const thumbnail=document.createElement('img');thumbnail.src=coverPhoto.url;thumbnail.alt='';thumbnail.loading='lazy';thumbnail.draggable=false;cover.appendChild(thumbnail);
+        }else{
+          cover.innerHTML='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 15V11a4 4 0 0 1 4-4h10l5 6h15a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V15Z"/><path d="M5 19h38"/></svg>';
+        }
+        const caption=document.createElement('span');caption.className='folder-caption';
+        const label=document.createElement('span');label.className='folder-label';label.textContent=folder.name;
+        const count=document.createElement('span');count.className='folder-count';count.textContent=contents.length;
+        caption.append(label,count);button.append(cover,caption);
+        button.onclick=()=>activateFolder(folder.id);wrap.appendChild(button);
+        if(folder.id!=='all'){
+          const rename=document.createElement('button');rename.className='folder-rename';rename.type='button';
+          rename.title='Переименовать';rename.setAttribute('aria-label','Переименовать '+folder.name);rename.textContent='✎';
+          rename.onclick=()=>openFolderDialog(folder.id);wrap.appendChild(rename);
+          const remove=document.createElement('button');remove.className='folder-delete';remove.type='button';remove.title='Удалить помещение';remove.setAttribute('aria-label','Удалить помещение '+folder.name);remove.textContent='×';
+          remove.onclick=e=>{e.stopPropagation();deleteFolder(folder);};wrap.appendChild(remove);
+        }
+        folderList.appendChild(wrap);
+      });
+      const add=document.createElement('button');add.className='new-folder';add.type='button';add.textContent='＋ Помещение';add.onclick=()=>openFolderDialog();folderList.appendChild(add);
+      folderList.scrollLeft=scrollLeft;
+    }
+    folderList.addEventListener('wheel',e=>{
+      if(e.ctrlKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)||folderList.scrollWidth<=folderList.clientWidth)return;
+      const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?folderList.clientWidth:1);
+      const before=folderList.scrollLeft;folderList.scrollLeft+=delta;
+      if(folderList.scrollLeft!==before)e.preventDefault();
+    },{passive:false});
+    let photoListDrag={active:false,startX:0,startScroll:0,moved:false};
+    photoList.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse'&&e.button!==0)return;
+      photoListDrag={active:true,startX:e.clientX,startScroll:photoList.scrollLeft,moved:false};
+      photoList.setPointerCapture?.(e.pointerId);
+    });
+    photoList.addEventListener('pointermove',e=>{
+      if(!photoListDrag.active)return;
+      const dx=e.clientX-photoListDrag.startX;
+      if(Math.abs(dx)>5){photoListDrag.moved=true;photoList.classList.add('dragging');}
+      if(photoListDrag.moved){photoList.scrollLeft=photoListDrag.startScroll-dx;e.preventDefault();}
+    });
+    function endPhotoListDrag(){if(photoListDrag.moved)setTimeout(()=>photoListDrag.moved=false,120);photoListDrag.active=false;photoList.classList.remove('dragging');}
+    ['pointerup','pointercancel','lostpointercapture'].forEach(event=>photoList.addEventListener(event,endPhotoListDrag));
+    function renderList(){
+      photoList.replaceChildren();
+      visiblePhotos().forEach(({photo,index})=>{
+        const card=document.createElement('div');card.className='photo-card';
+        const button=document.createElement('button');button.className='photo-item'+(photo.type==='panorama'?' panorama-item':'')+(index===activeIndex?' active':'');button.type='button';
+        button.setAttribute('aria-label',(photo.type==='panorama'?'Панорама 360°, можно вращать: ':'Рендер: ')+photo.file.name);
+        button.innerHTML='<span class="thumb-wrap"><img class="photo-thumb" alt=""><span class="media-badge"></span></span><span class="photo-name"></span>';
+        button.querySelector('img').src=photo.url;
+        button.querySelector('.media-badge').textContent=photo.type==='panorama'?'↔ 360°':'Рендер';
+        button.querySelector('.photo-name').textContent=photo.file.name;button.title=photo.file.name;
+        button.onclick=()=>{if(photoListDrag.moved)return;selectPhoto(index);closeMenu();};card.appendChild(button);
+        if(!publicMode||editorMode){
+          const rename=document.createElement('button');rename.className='photo-rename';rename.type='button';
+          rename.title='Переименовать фото';rename.setAttribute('aria-label','Переименовать '+photo.file.name);
+          rename.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a3 3 0 0 0-4-4L5 15Z"/></svg>';
+          rename.onclick=()=>openPhotoDialog(photo);card.appendChild(rename);
+          const remove=document.createElement('button');remove.className='photo-delete';remove.type='button';remove.title='Удалить фото';remove.setAttribute('aria-label','Удалить '+photo.file.name);
+          remove.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg>';
+          remove.onclick=e=>{e.stopPropagation();activeIndex=index;deleteCurrentPhoto();};card.appendChild(remove);
+        }
+        photoList.appendChild(card);
+      });
+    }
+    function addFile(file,folderId){ if(!file||!file.type.startsWith('image/')||!folders.some(folder=>folder.id===folderId))return; const url=URL.createObjectURL(file); loadPhoto({file,url,folderId}); }
+    function loadPhoto(photo){
+      const im=new Image();im.crossOrigin='anonymous';
+      im.onload=()=>{
+        photo.type=photo.type||(isPanoramaImage(im)?'panorama':'render');photo.image=im;photo.pixels=null;
+        const hadPanorama=photos.some(item=>item.folderId===photo.folderId&&item.type==='panorama');
+        if(photo.type==='panorama'){
+          const source=document.createElement('canvas');source.width=im.naturalWidth;source.height=im.naturalHeight;
+          const sourceContext=source.getContext('2d',{willReadFrequently:true});sourceContext.drawImage(im,0,0);
+          photo.pixels=sourceContext.getImageData(0,0,im.naturalWidth,im.naturalHeight).data;
+        }
+        const activeWasVisible=activeIndex>=0&&photos[activeIndex]?.folderId===activeFolder;
+        photos.push(photo);renderFolders();
+        if(photo.folderId===activeFolder&&(!activeWasVisible||(photo.type==='panorama'&&!hadPanorama)))selectPhoto(photos.length-1);
+        else renderList();
+      };
+      im.onerror=()=>{status.textContent='Не удалось загрузить '+photo.file.name;};im.src=photo.url;
+    }
+    function addFiles(files){const folderId=activeFolder;Array.from(files||[]).forEach(file=>addFile(file,folderId));}
+    document.getElementById('addPhotos').onclick=()=>fileInput.click();
+    fileInput.onchange=e=>{addFiles(e.target.files);fileInput.value='';};
+    viewerEmpty.addEventListener('click',()=>{if(!publicMode||editorMode)fileInput.click();});
     function openMenu(){sidebar.classList.add('open');backdrop.classList.add('open');}
     function closeMenu(){sidebar.classList.remove('open');backdrop.classList.remove('open');}
     document.getElementById('menuButton').onclick=openMenu; document.getElementById('closeMenu').onclick=closeMenu; backdrop.onclick=closeMenu;
-    folderForm.onsubmit=e=>{e.preventDefault();const name=folderNameInput.value.trim();if(!name)return;if(editingFolderId){const folder=folders.find(item=>item.id===editingFolderId);if(folder)folder.name=name;}else{const folder={id:'folder-'+Date.now(),name};folders.push(folder);activeFolder=folder.id;}renderFolders();renderList();closeFolderDialog();};
+    const menuDialog=document.getElementById('menuDialog');
+    document.getElementById('topMenu').onclick=()=>menuDialog.classList.add('open');
+    document.getElementById('closeMenuDialog').onclick=()=>menuDialog.classList.remove('open');
+    menuDialog.onclick=e=>{if(e.target===menuDialog)menuDialog.classList.remove('open');};
+    const authForm=document.getElementById('authForm'),authEmail=document.getElementById('authEmail'),authPassword=document.getElementById('authPassword'),authMessage=document.getElementById('authMessage'),authUser=document.getElementById('authUser'),authUserEmail=document.getElementById('authUserEmail'),authTitle=document.getElementById('authTitle');
+    let authSession=null;
+    function loginEmail(login){const value=login.trim().toLowerCase();return value.includes('@')?value:value+'@monstera.local';}
+    function validLogin(login){return /^[a-z0-9_.-]{3,32}$/i.test(login.trim());}
+    function authHeaders(){return {apikey:supabasePublishableKey,'Content-Type':'application/json'};}
+    function setAuthMessage(message,error=false){authMessage.textContent=message;authMessage.style.color=error?'#a45b5b':'var(--muted)';}
+    function updateAuthView(user=null){
+      authSession=user?authSession:null;
+      authUser.classList.toggle('open',!!user);
+      authUserEmail.textContent=user?.user_metadata?.login||user?.email||'';
+      authForm.style.display=user?'none':'grid';
+      authTitle.textContent=user?'Вы вошли':'Вход в аккаунт';
+      if(user)setAuthMessage('Аккаунт готов к работе');
+    }
+    async function authRequest(path,body){
+      const response=await fetch(supabaseUrl+path,{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error_description||data.msg||data.message||'Не удалось выполнить запрос');
+      return data;
+    }
+    async function restoreAuth(){
+      const saved=localStorage.getItem('monstera-auth-session');if(!saved)return;
+      try{authSession=JSON.parse(saved);const response=await fetch(supabaseUrl+'/auth/v1/user',{headers:{...authHeaders(),Authorization:'Bearer '+authSession.access_token}});if(!response.ok)throw new Error();updateAuthView(await response.json());}catch{localStorage.removeItem('monstera-auth-session');}
+    }
+    authForm.onsubmit=async e=>{e.preventDefault();const login=authEmail.value.trim(),password=authPassword.value;if(!validLogin(login)){setAuthMessage('Логин: 3–32 символа, латиница, цифры, точка, дефис или _',true);return;}setAuthMessage('Выполняется вход…');try{const data=await authRequest('/auth/v1/token?grant_type=password',{email:loginEmail(login),password});authSession=data;localStorage.setItem('monstera-auth-session',JSON.stringify(data));const user=await (await fetch(supabaseUrl+'/auth/v1/user',{headers:{...authHeaders(),Authorization:'Bearer '+data.access_token}})).json();updateAuthView(user);setAuthMessage('Вход выполнен');}catch(error){setAuthMessage(error.message,true);}};
+    document.getElementById('authSignup').onclick=async()=>{const login=authEmail.value.trim(),password=authPassword.value;if(!validLogin(login)||password.length<6){setAuthMessage('Введите логин и пароль от 6 символов',true);return;}setAuthMessage('Создание аккаунта…');try{const data=await authRequest('/auth/v1/signup',{email:loginEmail(login),password,user_metadata:{login}});if(data.access_token){authSession=data;localStorage.setItem('monstera-auth-session',JSON.stringify(data));updateAuthView(data.user);setAuthMessage('Регистрация выполнена');}else setAuthMessage('Аккаунт создан. Можно войти по логину');}catch(error){setAuthMessage(error.message,true);}};
+    document.getElementById('authLogout').onclick=async()=>{if(authSession?.access_token)await fetch(supabaseUrl+'/auth/v1/logout',{method:'POST',headers:{...authHeaders(),Authorization:'Bearer '+authSession.access_token}}).catch(()=>{});authSession=null;localStorage.removeItem('monstera-auth-session');updateAuthView(null);setAuthMessage('Вы вышли из аккаунта');};
+    restoreAuth();
+    folderForm.onsubmit=e=>{
+      e.preventDefault();
+      const name=folderNameInput.value.trim();if(!name)return;
+      if(editingPhoto){
+        if(!photos.includes(editingPhoto)){closeFolderDialog();return;}
+        const original=editingPhoto.file,extension=(original.name.match(/\.[^.]+$/)||[''])[0];
+        const filename=name.toLowerCase().endsWith(extension.toLowerCase())?name:name+extension;
+        editingPhoto.file=original instanceof File?new File([original],filename,{type:original.type,lastModified:original.lastModified}):{...original,name:filename};
+        if(photos[activeIndex]===editingPhoto)status.textContent=(editingPhoto.type==='panorama'?'360°':'Рендер')+' · '+filename;
+        renderFolders();renderList();shareResult.classList.remove('open');
+      }else if(editingFolderId){
+        const folder=folders.find(item=>item.id===editingFolderId);
+        if(folder)folder.name=name;
+        renderFolders();renderList();
+      }else{
+        const folder={id:'folder-'+crypto.randomUUID(),name};
+        folders.push(folder);
+        activateFolder(folder.id);
+      }
+      closeFolderDialog();
+    };
     document.getElementById('cancelFolder').onclick=closeFolderDialog; folderDialog.onclick=e=>{if(e.target===folderDialog)closeFolderDialog();};
     const publishDialog=document.getElementById('publishDialog'), publishForm=document.getElementById('publishForm');
-    document.getElementById('publish').onclick=()=>{if(!photos.length){alert('Сначала добавьте хотя бы одну панораму.');return;}publishDialog.classList.add('open');document.getElementById('projectTitle').focus();};
+    document.getElementById('publish').onclick=()=>{if(!photos.length){alert('Сначала добавьте хотя бы одно изображение.');return;}publishDialog.classList.add('open');document.getElementById('projectTitle').focus();};
     document.getElementById('cancelPublish').onclick=()=>publishDialog.classList.remove('open'); publishDialog.onclick=e=>{if(e.target===publishDialog)publishDialog.classList.remove('open');};
-    publishForm.onsubmit=async e=>{e.preventDefault();const submit=publishForm.querySelector('button[type=submit]');submit.disabled=true;submit.textContent='Загрузка…';try{const id=crypto.randomUUID().replaceAll('-','').slice(0,20);const title=document.getElementById('projectTitle').value.trim()||'Monstera 360';const uploaded=[];for(let i=0;i<photos.length;i++){const p=photos[i],safeName=(p.file.name||'photo.jpg').replace(/[^a-zA-Z0-9._-]/g,'_'),key=id+'/'+i+'-'+safeName;const up=await fetch(supabaseUrl+'/storage/v1/object/panoramas/'+key,{method:'POST',headers:{apikey:supabasePublishableKey,Authorization:'Bearer '+supabasePublishableKey,'Content-Type':p.file.type||'image/jpeg','x-upsert':'false'},body:p.file});if(!up.ok)throw new Error('Supabase upload '+up.status+': '+await up.text());uploaded.push({name:p.file.name,folderId:p.folderId,url:supabaseUrl+'/storage/v1/object/public/panoramas/'+key});}const payload={id,title,folders:folders.filter(f=>f.id!=='all'),photos:uploaded};const res=await fetch(apiBase+'/.netlify/functions/create-project',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!res.ok)throw new Error(await res.text());const url=shareBase+'/view/'+id;shareLink.href=url;shareLink.textContent=url;shareResult.classList.add('open');publishDialog.classList.remove('open');status.textContent='Проект опубликован';}catch(err){alert('Не удалось опубликовать проект: '+err.message);console.error(err);}finally{submit.disabled=false;submit.textContent='Создать ссылку';}};
+    publishForm.onsubmit=async e=>{e.preventDefault();const submit=publishForm.querySelector('button[type=submit]');submit.disabled=true;submit.textContent='Загрузка…';try{const id=crypto.randomUUID().replaceAll('-','').slice(0,20);const title=document.getElementById('projectTitle').value.trim()||'Monstera 360';const uploaded=[];for(let i=0;i<photos.length;i++){const p=photos[i],safeName=(p.file.name||'photo.jpg').replace(/[^a-zA-Z0-9._-]/g,'_'),key=id+'/'+i+'-'+safeName;const up=await fetch(supabaseUrl+'/storage/v1/object/panoramas/'+key,{method:'POST',headers:{apikey:supabasePublishableKey,Authorization:'Bearer '+supabasePublishableKey,'Content-Type':p.file.type||'image/jpeg','x-upsert':'false'},body:p.file});if(!up.ok)throw new Error('Supabase upload '+up.status+': '+await up.text());uploaded.push({name:p.file.name,folderId:p.folderId,type:p.type,url:supabaseUrl+'/storage/v1/object/public/panoramas/'+key});}const payload={id,title,folders:folders.filter(f=>f.id!=='all'),photos:uploaded};const res=await fetch(apiBase+'/.netlify/functions/create-project',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!res.ok)throw new Error(await res.text());const url=shareBase+'/view/'+id;shareLink.href=url;shareLink.textContent=url;shareResult.classList.add('open');publishDialog.classList.remove('open');status.textContent='Проект опубликован';}catch(err){alert('Не удалось опубликовать проект: '+err.message);console.error(err);}finally{submit.disabled=false;submit.textContent='Создать ссылку';}};
     document.getElementById('copyShare').onclick=async()=>{await navigator.clipboard?.writeText(shareLink.href);document.getElementById('copyShare').textContent='Скопировано';setTimeout(()=>document.getElementById('copyShare').textContent='Копировать',1400);};
     ['dragenter','dragover'].forEach(t=>viewer.addEventListener(t,e=>{e.preventDefault();viewer.style.borderColor='var(--accent)';}));
     ['dragleave','drop'].forEach(t=>viewer.addEventListener(t,e=>{e.preventDefault();viewer.style.borderColor='';})); viewer.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
@@ -177,12 +627,73 @@
     canvas.addEventListener('pointermove',e=>{if(!dragging)return; const dx=e.clientX-lastX,dy=e.clientY-lastY; velocityYaw=-(dx/canvas.clientWidth)*Math.PI*2*.22; velocityPitch=-(dy/canvas.clientHeight)*Math.PI*.22; yaw+=velocityYaw/.22; pitch+=velocityPitch/.22; pitch=Math.max(-1.2,Math.min(1.2,pitch));lastX=e.clientX;lastY=e.clientY;});
     ['pointerup','pointercancel'].forEach(t=>canvas.addEventListener(t,()=>{dragging=false;canvas.classList.remove('dragging');}));
     canvas.addEventListener('wheel',e=>{e.preventDefault();fov=Math.max(35,Math.min(110,fov+e.deltaY*.04));},{passive:false});
-    addEventListener('keydown',e=>{if(e.key==='ArrowLeft')yaw-=.08;if(e.key==='ArrowRight')yaw+=.08;});
+    addEventListener('keydown',e=>{
+      if(e.target.closest('input,textarea,[contenteditable]'))return;
+      if(e.key==='Escape'&&viewer.classList.contains('is-fullscreen')){viewer.classList.remove('is-fullscreen');syncFullscreen();return;}
+      if(isViewerFullscreen()&&photos[activeIndex]?.type==='render'&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();nextRender(e.key==='ArrowLeft'?-1:1);return;}
+      if(e.key==='ArrowLeft')yaw-=.08;if(e.key==='ArrowRight')yaw+=.08;
+    });
     document.getElementById('reset').onclick=()=>{yaw=0;pitch=0;fov=75;velocityYaw=0;velocityPitch=0;};
-    const goFullscreen=()=>viewer.requestFullscreen?.();
+    function isViewerFullscreen(){return document.fullscreenElement===viewer||viewer.classList.contains('is-fullscreen');}
+    function syncFullscreen(){
+      swipeStart=null;
+      const full=isViewerFullscreen(),button=document.getElementById('cornerFullscreen');
+      button.textContent=full?'×':'⛶';
+      button.setAttribute('aria-label',full?'Выйти из полноэкранного режима':'На весь экран');
+      button.setAttribute('aria-pressed',String(full));
+      requestAnimationFrame(resize);
+    }
+    const goFullscreen=async()=>{
+      if(document.fullscreenElement===viewer){await document.exitFullscreen();return;}
+      if(viewer.classList.contains('is-fullscreen')){viewer.classList.remove('is-fullscreen');syncFullscreen();return;}
+      try{if(!viewer.requestFullscreen)throw new Error('unsupported');await viewer.requestFullscreen();}
+      catch{viewer.classList.add('is-fullscreen');}
+      syncFullscreen();
+    };
+    document.addEventListener('fullscreenchange',syncFullscreen);
+    function nextRender(direction){
+      const current=photos[activeIndex];if(!current||current.type!=='render')return;
+      const items=visiblePhotos().filter(item=>item.photo.type==='render'&&item.photo.folderId===current.folderId);
+      const position=items.findIndex(item=>item.index===activeIndex);
+      if(position<0||items.length<2)return;
+      selectPhoto(items[(position+direction+items.length)%items.length].index);
+    }
+    let swipeStart=null;
+    renderImage.addEventListener('pointerdown',e=>{
+      if(!e.isPrimary){swipeStart=null;return;}
+      if(!isViewerFullscreen()||photos[activeIndex]?.type!=='render'||e.button!==0)return;
+      swipeStart={id:e.pointerId,x:e.clientX,y:e.clientY,index:activeIndex};
+      renderImage.setPointerCapture(e.pointerId);
+    });
+    renderImage.addEventListener('pointerup',e=>{
+      const start=swipeStart;swipeStart=null;
+      if(!start||start.id!==e.pointerId||start.index!==activeIndex||!isViewerFullscreen())return;
+      const dx=e.clientX-start.x,dy=e.clientY-start.y;
+      if(Math.abs(dx)>=Math.min(80,Math.max(40,viewer.clientWidth*.08))&&Math.abs(dx)>Math.abs(dy)*1.5)nextRender(dx<0?1:-1);
+    });
+    ['pointercancel','lostpointercapture'].forEach(event=>renderImage.addEventListener(event,()=>{swipeStart=null;}));
     document.getElementById('fullscreen').onclick=goFullscreen;
     document.getElementById('cornerFullscreen').onclick=goFullscreen;
-    async function loadRemoteProject(){if(!remoteProjectId)return;try{const res=await fetch(apiBase+'/.netlify/functions/get-project?id='+encodeURIComponent(remoteProjectId));if(!res.ok)throw new Error('not found');const project=await res.json();document.title=project.title+' · Monstera 360';document.querySelector('h1').textContent=project.title;folders.splice(0,folders.length,{id:'all',name:'Все фото'},...(project.folders||[]));activeFolder='all';for(const p of project.photos||[]){loadPhoto({file:{name:p.name},url:p.url,folderId:p.folderId});}renderFolders();}catch(err){status.textContent='Проект не найден или ссылка устарела';console.error(err);}}
+    async function loadRemoteProject(){
+      if(!remoteProjectId)return;
+      try{
+        const res=await fetch(apiBase+'/.netlify/functions/get-project?id='+encodeURIComponent(remoteProjectId));
+        if(!res.ok)throw new Error('not found');
+        const project=await res.json();document.title=project.title+' · Monstera 360';
+        const savedFolders=(project.folders||[]).filter(folder=>folder.id!=='all');
+        if(!savedFolders.length)savedFolders.push({id:'general',name:'Новое помещение'});
+        for(const p of project.photos||[]){
+          if(p.folderId&&p.folderId!=='all'&&!savedFolders.some(folder=>folder.id===p.folderId)){
+            savedFolders.push({id:p.folderId,name:'Помещение '+(savedFolders.length+1)});
+          }
+        }
+        folders.splice(0,folders.length,...savedFolders);activeFolder=folders[0].id;
+        for(const p of project.photos||[]){
+          loadPhoto({file:{name:p.name},url:p.url,folderId:folders.some(folder=>folder.id===p.folderId)?p.folderId:activeFolder,type:p.type});
+        }
+        renderFolders();
+      }catch(err){status.textContent='Проект не найден или ссылка устарела';console.error(err);}
+    }
     renderFolders(); renderList(); resize(); loop(); loadRemoteProject();
   </script>
 </body>
