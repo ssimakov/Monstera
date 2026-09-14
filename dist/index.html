@@ -245,9 +245,11 @@
     .photo-card { position:relative; flex:none; }
     .photo-rename, .photo-delete { position:absolute; top:11px; width:28px; height:28px; padding:0; display:grid; place-items:center; border:1px solid #ffffff80; border-radius:8px; color:#44503f; background:#ffffffe0; backdrop-filter:blur(12px); box-shadow:none; }
     .photo-rename { left:11px; }
+    .photo-replace { left:45px; }
     .photo-delete { right:11px; color:#a45b5b; }
-    .photo-rename svg, .photo-delete svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-    body.public-mode .photo-rename, body.public-mode .photo-delete { display:none; }
+    .photo-rename, .photo-replace { position:absolute; top:11px; width:28px; height:28px; padding:0; display:grid; place-items:center; border:1px solid #ffffff80; border-radius:8px; color:#44503f; background:#ffffffe0; backdrop-filter:blur(12px); box-shadow:none; }
+    .photo-rename svg, .photo-replace svg, .photo-delete svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    body.public-mode .photo-rename, body.public-mode .photo-replace, body.public-mode .photo-delete { display:none; }
     .photo-item { background:#fff; border-color:transparent; }
     .photo-item.active { background:#f0f3ec; border-color:#acbca0; }
     .photo-name { font-size:11px; font-weight:500; color:#687160; }
@@ -485,6 +487,7 @@
         const contents=photos.filter(photo=>photo.folderId===folder.id);
         const coverPhoto=contents.find(photo=>photo.type==='render'&&!isPanoramaImage(photo.image));
         const wrap=document.createElement('div');wrap.className='folder-wrap';
+        if(editorMode){wrap.draggable=true;wrap.ondragstart=e=>{e.dataTransfer.setData('text/folder',folder.id);e.dataTransfer.effectAllowed='move';};wrap.ondragover=e=>e.preventDefault();wrap.ondrop=e=>{e.preventDefault();const id=e.dataTransfer.getData('text/folder'),from=folders.findIndex(item=>item.id===id),to=folders.indexOf(folder);if(from>=0&&to>=0&&from!==to){const [moved]=folders.splice(from,1);folders.splice(to,0,moved);renderFolders();shareResult.classList.remove('open');}};}
         const button=document.createElement('button');button.className='folder-button'+(folder.id===activeFolder?' active':'');
         button.type='button';button.title=folder.name;button.setAttribute('aria-pressed',String(folder.id===activeFolder));
         const cover=document.createElement('span');cover.className='folder-cover';
@@ -534,6 +537,7 @@
       photoList.replaceChildren();
       visiblePhotos().forEach(({photo,index})=>{
         const card=document.createElement('div');card.className='photo-card';
+        if(editorMode){card.draggable=true;card.ondragstart=e=>{e.dataTransfer.setData('text/photo',String(index));e.dataTransfer.effectAllowed='move';};card.ondragover=e=>e.preventDefault();card.ondrop=e=>{e.preventDefault();const from=Number(e.dataTransfer.getData('text/photo'));if(!Number.isInteger(from)||from===index)return;const [moved]=photos.splice(from,1);const insertAt=photos.indexOf(photo);photos.splice(insertAt<0?photos.length:insertAt,0,moved);renderList();selectPhoto(photos.indexOf(moved));shareResult.classList.remove('open');};}
         const button=document.createElement('button');button.className='photo-item'+(photo.type==='panorama'?' panorama-item':'')+(index===activeIndex?' active':'');button.type='button';
         button.setAttribute('aria-label',(photo.type==='panorama'?'Панорама 360°, можно вращать: ':'Рендер: ')+photo.file.name);
         button.innerHTML='<span class="thumb-wrap"><img class="photo-thumb" alt=""><span class="media-badge"></span></span><span class="photo-name"></span>';
@@ -546,6 +550,9 @@
           rename.title='Переименовать фото';rename.setAttribute('aria-label','Переименовать '+photo.file.name);
           rename.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a3 3 0 0 0-4-4L5 15Z"/></svg>';
           rename.onclick=()=>openPhotoDialog(photo);card.appendChild(rename);
+          const replace=document.createElement('button');replace.className='photo-replace';replace.type='button';replace.title='Заменить изображение';replace.setAttribute('aria-label','Заменить '+photo.file.name);
+          replace.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"/></svg>';
+          replace.onclick=e=>{e.stopPropagation();replaceTarget=photo;replaceInput.click();};card.appendChild(replace);
           const remove=document.createElement('button');remove.className='photo-delete';remove.type='button';remove.title='Удалить фото';remove.setAttribute('aria-label','Удалить '+photo.file.name);
           remove.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg>';
           remove.onclick=e=>{e.stopPropagation();activeIndex=index;deleteCurrentPhoto();};card.appendChild(remove);
@@ -553,6 +560,9 @@
         photoList.appendChild(card);
       });
     }
+    let replaceTarget=null;
+    const replaceInput=document.createElement('input');replaceInput.type='file';replaceInput.accept='image/*,.jpg,.jpeg,.png,.webp';replaceInput.hidden=true;document.body.appendChild(replaceInput);
+    replaceInput.onchange=e=>{const file=e.target.files?.[0],target=replaceTarget;replaceInput.value='';replaceTarget=null;if(!file||!target)return;const name=target.file.name;const replacement={file:new File([file],name,{type:file.type||'image/jpeg'}),url:URL.createObjectURL(file),folderId:target.folderId};loadPhoto(replacement).then(()=>{const added=photos.indexOf(replacement),old=photos.indexOf(target);if(added<0||old<0)return;photos.splice(added,1);photos[old]=replacement;if(target.url.startsWith('blob:'))URL.revokeObjectURL(target.url);selectPhoto(old);renderFolders();renderList();shareResult.classList.remove('open');});};
     function addFile(file,folderId){ if(!file||!file.type.startsWith('image/')||!folders.some(folder=>folder.id===folderId))return; const url=URL.createObjectURL(file); loadPhoto({file,url,folderId}); }
     function loadPhoto(photo){
       return new Promise((resolve,reject)=>{
