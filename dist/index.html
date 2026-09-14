@@ -34,6 +34,9 @@
     .viewer.is-fullscreen { position:fixed; inset:0; z-index:30; width:100%; height:100dvh; border:0; border-radius:0; }
     .viewer:fullscreen { width:100%; height:100%; border:0; border-radius:0; }
     .corner-fullscreen { right:max(14px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); }
+    .exit-fullscreen { display:none; position:absolute; top:max(14px,env(safe-area-inset-top)); left:max(14px,env(safe-area-inset-left)); z-index:4; width:38px; height:38px; padding:0; border:1px solid #ffffff40; border-radius:12px; background:#202620b3; color:#fff; font-size:24px; line-height:1; backdrop-filter:blur(12px); box-shadow:0 3px 12px #0003; }
+    .viewer.is-fullscreen .exit-fullscreen, .viewer:fullscreen .exit-fullscreen { display:grid; place-items:center; }
+    .exit-fullscreen:hover { color:#fff; background:#354134e6; border-color:#ffffff70; }
     .viewer.render-mode canvas { display:none; }
     .viewer.render-mode .render-image { display:block; }
     .viewer-empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#8a9389; background:#fff; text-align:center; cursor:pointer; transition:background .2s ease,color .2s ease,transform .2s ease; }
@@ -319,6 +322,12 @@
     .photo-item.panorama-item .photo-thumb { display:none; }
     .panorama-indicator { position:absolute; top:max(12px,env(safe-area-inset-top)); left:max(12px,env(safe-area-inset-left)); padding:7px 12px; border:1px solid #c1dba780; border-radius:999px; color:#eaffdf; background:#294324cf; backdrop-filter:blur(12px); font-size:12px; font-weight:650; pointer-events:none; }
     .panorama-indicator[hidden] { display:none; }
+    .project-loader { position:absolute; inset:0; z-index:8; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:24px; text-align:center; color:#26352a; background:#fffffff0; backdrop-filter:blur(18px) saturate(125%); -webkit-backdrop-filter:blur(18px) saturate(125%); }
+    .project-loader[hidden] { display:none; }
+    .project-loader strong { font-size:16px; font-weight:700; }
+    .project-loader span { color:#6b786e; font-size:13px; }
+    .loader-spinner { width:30px; height:30px; border:3px solid #dce8dc; border-top-color:var(--accent); border-radius:50%; animation:project-spin .8s linear infinite; }
+    @keyframes project-spin { to { transform:rotate(360deg); } }
     @media (orientation:landscape) and (max-height:600px) {
       .photo-item.panorama-item .thumb-wrap { height:47px; }
       .photo-item.panorama-item .media-badge { padding:6px 8px; font-size:12px; }
@@ -355,7 +364,13 @@
         <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="4"/><circle cx="17" cy="19" r="3"/><path d="m9 35 10-10 7 7 5-5 8 8"/></svg>
         <strong>Добавить изображение</strong>
       </div>
+      <div id="projectLoader" class="project-loader" hidden aria-live="polite">
+        <div class="loader-spinner" aria-hidden="true"></div>
+        <strong id="loaderTitle">Загрузка проекта…</strong>
+        <span id="loaderProgress">Подготавливаем изображения</span>
+      </div>
       <span id="panoramaIndicator" class="panorama-indicator" hidden aria-label="Интерактивная панорама, можно вращать">↔ 360°</span>
+      <button id="exitFullscreen" class="exit-fullscreen" type="button" aria-label="Выйти из полноэкранного режима" title="Выйти из полноэкранного режима">×</button>
       <button id="deletePhoto" class="delete-photo" type="button" title="Удалить фото из проекта" aria-label="Удалить фото из проекта" hidden>×</button>
       <div id="hint" class="hint"></div>
       <button id="cornerFullscreen" class="corner-fullscreen" type="button" aria-label="На весь экран">⛶</button>
@@ -375,6 +390,7 @@
     const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
     const viewer = document.querySelector('.viewer'), renderImage = document.getElementById('renderImage'), fileInput = document.getElementById('file');
     const hint = document.getElementById('hint'), status = document.getElementById('status'), viewerEmpty = document.getElementById('viewerEmpty');
+    const projectLoader = document.getElementById('projectLoader'), loaderTitle = document.getElementById('loaderTitle'), loaderProgress = document.getElementById('loaderProgress');
     const shareResult = document.getElementById('shareResult'), shareLink = document.getElementById('shareLink');
     const photoList = document.getElementById('photoList'), folderList = document.getElementById('folderList');
     const sidebar = document.getElementById('sidebar'), backdrop = document.getElementById('backdrop');
@@ -539,6 +555,7 @@
     }
     function addFile(file,folderId){ if(!file||!file.type.startsWith('image/')||!folders.some(folder=>folder.id===folderId))return; const url=URL.createObjectURL(file); loadPhoto({file,url,folderId}); }
     function loadPhoto(photo){
+      return new Promise((resolve,reject)=>{
       const im=new Image();im.crossOrigin='anonymous';
       im.onload=()=>{
         photo.type=photo.type||(isPanoramaImage(im)?'panorama':'render');photo.image=im;photo.pixels=null;
@@ -552,8 +569,10 @@
         photos.push(photo);renderFolders();
         if(photo.folderId===activeFolder&&(!activeWasVisible||(photo.type==='panorama'&&!hadPanorama)))selectPhoto(photos.length-1);
         else renderList();
+        resolve(photo);
       };
-      im.onerror=()=>{status.textContent='Не удалось загрузить '+photo.file.name;};im.src=photo.url;
+      im.onerror=()=>{status.textContent='Не удалось загрузить '+photo.file.name;reject(new Error('Не удалось загрузить '+photo.file.name));};im.src=photo.url;
+      });
     }
     function addFiles(files){const folderId=activeFolder;Array.from(files||[]).forEach(file=>addFile(file,folderId));}
     document.getElementById('addPhotos').onclick=()=>fileInput.click();
@@ -674,6 +693,9 @@
     ['pointercancel','lostpointercapture'].forEach(event=>renderImage.addEventListener(event,()=>{swipeStart=null;}));
     document.getElementById('fullscreen').onclick=goFullscreen;
     document.getElementById('cornerFullscreen').onclick=goFullscreen;
+    document.getElementById('exitFullscreen').onclick=goFullscreen;
+    function setProjectLoading(title,progress){projectLoader.hidden=false;loaderTitle.textContent=title;loaderProgress.textContent=progress;}
+    function finishProjectLoading(){projectLoader.hidden=true;}
     async function loadRemoteProject(){
       if(!remoteProjectId)return;
       try{
@@ -687,12 +709,28 @@
             savedFolders.push({id:p.folderId,name:'Помещение '+(savedFolders.length+1)});
           }
         }
-        folders.splice(0,folders.length,...savedFolders);activeFolder=folders[0].id;
-        for(const p of project.photos||[]){
-          loadPhoto({file:{name:p.name},url:p.url,folderId:folders.some(folder=>folder.id===p.folderId)?p.folderId:activeFolder,type:p.type});
+        folders.splice(0,folders.length,...savedFolders);activeFolder=folders[0].id;renderFolders();renderList();
+        const normalized=(project.photos||[]).map(p=>({...p,folderId:folders.some(folder=>folder.id===p.folderId)?p.folderId:activeFolder}));
+        const total=normalized.length;
+        if(!total){finishProjectLoading();return;}
+        let loaded=0;
+        for(const folder of folders){
+          const items=normalized.filter(p=>p.folderId===folder.id);
+          if(!items.length)continue;
+          activeFolder=folder.id;
+          setProjectLoading('Загрузка «'+folder.name+'»…',loaded+' из '+total+' изображений');
+          renderFolders();renderList();
+          for(const p of items){
+            try{await loadPhoto({file:{name:p.name},url:p.url,folderId:p.folderId,type:p.type});}
+            catch(err){console.warn(err);}
+            loaded++;setProjectLoading('Загрузка «'+folder.name+'»…',loaded+' из '+total+' изображений');
+          }
+          renderFolders();renderList();
         }
-        renderFolders();
-      }catch(err){status.textContent='Проект не найден или ссылка устарела';console.error(err);}
+        activeFolder=folders[0]?.id||'general';
+        const first=visiblePhotos()[0];if(first)selectPhoto(first.index);else clearViewer();
+        finishProjectLoading();
+      }catch(err){finishProjectLoading();status.textContent='Проект не найден или ссылка устарела';console.error(err);}
     }
     renderFolders(); renderList(); resize(); loop(); loadRemoteProject();
   </script>
