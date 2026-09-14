@@ -437,7 +437,7 @@
     function isPanoramaImage(im){ const ratio=im.naturalWidth/im.naturalHeight; return Math.abs(ratio-2)/2<=.030001; }
     function visiblePhotos(){ return photos.map((photo,index)=>({photo,index})).filter(item=>item.photo.folderId===activeFolder).sort((a,b)=>(a.photo.type==='panorama'?0:1)-(b.photo.type==='panorama'?0:1)||a.index-b.index); }
     function clearViewer(){ activeIndex=-1; image=null; sourcePixels=null; renderImage.removeAttribute('src'); viewer.classList.remove('render-mode'); viewerEmpty.hidden=false; document.getElementById('deletePhoto').hidden=true; ctx.clearRect(0,0,canvas.width,canvas.height); }
-    function selectPhoto(index){ const photo=photos[index]; if(!photo)return; activeIndex=index;if(!photo.image){viewerEmpty.hidden=true;setProjectLoading('Загрузка изображения…',photo.file.name);photo.loadPromise?.then(()=>{if(activeIndex===index){finishProjectLoading();selectPhoto(index);}});return;} image=photo.image;viewerEmpty.hidden=true; hint.hidden=true; yaw=0;pitch=0;fov=75;velocityYaw=0;velocityPitch=0;if(photo.type==='panorama'){viewer.classList.remove('render-mode');renderImage.removeAttribute('src');sourcePixels=photo.pixels;status.textContent='360° · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}else{sourcePixels=null;renderImage.src=photo.url;viewer.classList.add('render-mode');status.textContent='Рендер · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}renderList();syncPhotoHeading(); }
+    function selectPhoto(index){ const photo=photos[index]; if(!photo)return; activeIndex=index;if(!photo.image){viewerEmpty.hidden=true;setProjectLoading('Загрузка изображения…',photo.file.name);photo.loadPromise?.then(()=>{if(activeIndex===index){finishProjectLoading();selectPhoto(index);}});return;} finishProjectLoading();image=photo.image;viewerEmpty.hidden=true; hint.hidden=true; yaw=0;pitch=0;fov=75;velocityYaw=0;velocityPitch=0;if(photo.type==='panorama'){viewer.classList.remove('render-mode');renderImage.removeAttribute('src');sourcePixels=photo.pixels;status.textContent='360° · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}else{sourcePixels=null;renderImage.src=photo.url;viewer.classList.add('render-mode');status.textContent='Рендер · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}renderList();syncPhotoHeading(); }
     const deletePhotoButton=document.getElementById('deletePhoto');
     function syncPhotoHeading(){
       deletePhotoButton.hidden=(publicMode&&!editorMode)||activeIndex<0;
@@ -470,7 +470,7 @@
     function openFolderDialog(folderId=null){editingFolderId=folderId;const folder=folders.find(item=>item.id===folderId);dialogTitle.textContent=folder?'Переименовать помещение':'Новое помещение';folderNameInput.value=folder?folder.name:'';folderDialog.classList.add('open');setTimeout(()=>folderNameInput.focus(),50);}
     function closeFolderDialog(){folderDialog.classList.remove('open');editingFolderId=null;editingPhoto=null;}
     function activateFolder(folderId){
-      activeFolder=folderId;renderFolders();
+      activeFolder=folderId;renderFolders();finishProjectLoading();
       const pending=folderLoading.get(folderId);
       if(pending){
         const folder=folders.find(item=>item.id===folderId);
