@@ -523,7 +523,6 @@
     photoList.addEventListener('pointerdown',e=>{
       if(e.pointerType==='mouse'&&e.button!==0)return;
       photoListDrag={active:true,startX:e.clientX,startScroll:photoList.scrollLeft,moved:false};
-      photoList.setPointerCapture?.(e.pointerId);
     });
     photoList.addEventListener('pointermove',e=>{
       if(!photoListDrag.active)return;
@@ -544,7 +543,7 @@
         button.querySelector('img').src=photo.url;
         button.querySelector('.media-badge').textContent=photo.type==='panorama'?'↔ 360°':'Рендер';
         button.querySelector('.photo-name').textContent=photo.file.name;button.title=photo.file.name;
-        button.onclick=()=>{if(photoListDrag.moved)return;selectPhoto(index);closeMenu();};card.appendChild(button);
+        button.onclick=e=>{e.preventDefault();selectPhoto(index);closeMenu();};card.appendChild(button);
         if(!publicMode||editorMode){
           const rename=document.createElement('button');rename.className='photo-rename';rename.type='button';
           rename.title='Переименовать фото';rename.setAttribute('aria-label','Переименовать '+photo.file.name);
