@@ -549,13 +549,13 @@
           const rename=document.createElement('button');rename.className='photo-rename';rename.type='button';
           rename.title='Переименовать фото';rename.setAttribute('aria-label','Переименовать '+photo.file.name);
           rename.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a3 3 0 0 0-4-4L5 15Z"/></svg>';
-          rename.onclick=()=>openPhotoDialog(photo);card.appendChild(rename);
+          rename.onpointerdown=e=>e.stopPropagation();rename.onclick=e=>{e.preventDefault();e.stopPropagation();openPhotoDialog(photo);};card.appendChild(rename);
           const replace=document.createElement('button');replace.className='photo-replace';replace.type='button';replace.title='Заменить изображение';replace.setAttribute('aria-label','Заменить '+photo.file.name);
           replace.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"/></svg>';
-          replace.onclick=e=>{e.stopPropagation();replaceTarget=photo;replaceInput.click();};card.appendChild(replace);
+          replace.onpointerdown=e=>e.stopPropagation();replace.onclick=e=>{e.preventDefault();e.stopPropagation();replaceTarget=photo;replaceInput.click();};card.appendChild(replace);
           const remove=document.createElement('button');remove.className='photo-delete';remove.type='button';remove.title='Удалить фото';remove.setAttribute('aria-label','Удалить '+photo.file.name);
           remove.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg>';
-          remove.onclick=e=>{e.stopPropagation();activeIndex=index;deleteCurrentPhoto();};card.appendChild(remove);
+          remove.onpointerdown=e=>e.stopPropagation();remove.onclick=e=>{e.preventDefault();e.stopPropagation();activeIndex=index;deleteCurrentPhoto();};card.appendChild(remove);
         }
         photoList.appendChild(card);
       });
