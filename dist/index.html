@@ -545,15 +545,14 @@
     photoList.addEventListener('click',e=>{
       const button=e.target.closest('.photo-item');
       if(!button||e.target.closest('.photo-rename, .photo-replace, .photo-delete'))return;
-      const cards=[...photoList.querySelectorAll('.photo-card')],card=button.closest('.photo-card'),position=cards.indexOf(card);
-      const item=visiblePhotos()[position];
-      if(item){e.preventDefault();selectPhoto(item.index);closeMenu();}
+      const index=Number(button.dataset.photoIndex);
+      if(Number.isInteger(index)&&photos[index]){e.preventDefault();selectPhoto(index);closeMenu();}
     },true);
     function renderList(){
       photoList.replaceChildren();
       visiblePhotos().forEach(({photo,index})=>{
         const card=document.createElement('div');card.className='photo-card';
-        const button=document.createElement('button');button.className='photo-item'+(photo.type==='panorama'?' panorama-item':'')+(index===activeIndex?' active':'');button.type='button';
+        const button=document.createElement('button');button.className='photo-item'+(photo.type==='panorama'?' panorama-item':'')+(index===activeIndex?' active':'');button.type='button';button.dataset.photoIndex=String(index);
         button.setAttribute('aria-label',(photo.type==='panorama'?'Панорама 360°, можно вращать: ':'Рендер: ')+photo.file.name);
         button.innerHTML='<span class="thumb-wrap"><img class="photo-thumb" alt=""><span class="media-badge"></span></span><span class="photo-name"></span>';
         button.querySelector('img').src=photo.url;
