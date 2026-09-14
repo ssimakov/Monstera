@@ -405,7 +405,7 @@
     const supabaseUrl = 'https://sdydtaqhzsmbqybcowxb.supabase.co';
     const supabasePublishableKey = 'sb_publishable_3m_K_HnurU6zwO_zySdNtg_qeUW38IJ';
     if((publicMode||remoteProjectId) && !editorMode) document.body.classList.add('public-mode');
-    const photos = []; const folders = [{id:'general',name:'Новое помещение'}]; let activeIndex = -1, activeFolder = 'general';
+    const photos = []; const folders = [{id:'general',name:'Новое помещение'}]; const folderLoading = new Map(); let activeIndex = -1, activeFolder = 'general';
     let image = null, sourceCanvas = null, sourceCtx = null, sourcePixels = null, yaw = 0, pitch = 0, fov = 75, dragging = false, lastX = 0, lastY = 0, velocityYaw = 0, velocityPitch = 0, raf;
     function resize(){ const w=Math.max(1,viewer.clientWidth),h=Math.max(1,viewer.clientHeight); if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;draw();} }
     addEventListener('resize', resize);
@@ -437,7 +437,7 @@
     function isPanoramaImage(im){ const ratio=im.naturalWidth/im.naturalHeight; return Math.abs(ratio-2)/2<=.030001; }
     function visiblePhotos(){ return photos.map((photo,index)=>({photo,index})).filter(item=>item.photo.folderId===activeFolder).sort((a,b)=>(a.photo.type==='panorama'?0:1)-(b.photo.type==='panorama'?0:1)||a.index-b.index); }
     function clearViewer(){ activeIndex=-1; image=null; sourcePixels=null; renderImage.removeAttribute('src'); viewer.classList.remove('render-mode'); viewerEmpty.hidden=false; document.getElementById('deletePhoto').hidden=true; ctx.clearRect(0,0,canvas.width,canvas.height); }
-    function selectPhoto(index){ const photo=photos[index]; if(!photo)return; activeIndex=index; image=photo.image; viewerEmpty.hidden=true; hint.hidden=true; yaw=0;pitch=0;fov=75;velocityYaw=0;velocityPitch=0;if(photo.type==='panorama'){viewer.classList.remove('render-mode');renderImage.removeAttribute('src');sourcePixels=photo.pixels;status.textContent='360° · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}else{sourcePixels=null;renderImage.src=photo.url;viewer.classList.add('render-mode');status.textContent='Рендер · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}renderList(); }
+    function selectPhoto(index){ const photo=photos[index]; if(!photo)return; activeIndex=index; image=photo.image; viewerEmpty.hidden=true; hint.hidden=true; yaw=0;pitch=0;fov=75;velocityYaw=0;velocityPitch=0;if(photo.type==='panorama'){viewer.classList.remove('render-mode');renderImage.removeAttribute('src');sourcePixels=photo.pixels;status.textContent='360° · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}else{sourcePixels=null;renderImage.src=photo.url;viewer.classList.add('render-mode');status.textContent='Рендер · '+photo.file.name+' · '+image.naturalWidth+'×'+image.naturalHeight;}renderList();syncPhotoHeading(); }
     const deletePhotoButton=document.getElementById('deletePhoto');
     function syncPhotoHeading(){
       deletePhotoButton.hidden=(publicMode&&!editorMode)||activeIndex<0;
@@ -469,7 +469,17 @@
     let editingFolderId=null;
     function openFolderDialog(folderId=null){editingFolderId=folderId;const folder=folders.find(item=>item.id===folderId);dialogTitle.textContent=folder?'Переименовать помещение':'Новое помещение';folderNameInput.value=folder?folder.name:'';folderDialog.classList.add('open');setTimeout(()=>folderNameInput.focus(),50);}
     function closeFolderDialog(){folderDialog.classList.remove('open');editingFolderId=null;editingPhoto=null;}
-    function activateFolder(folderId){activeFolder=folderId;renderFolders();const visible=visiblePhotos();if(visible.length)selectPhoto(visible[0].index);else{clearViewer();renderList();status.textContent='В помещении пока нет изображений';}}
+    function activateFolder(folderId){
+      activeFolder=folderId;renderFolders();
+      const pending=folderLoading.get(folderId);
+      if(pending){
+        const folder=folders.find(item=>item.id===folderId);
+        setProjectLoading('Загрузка «'+(folder?.name||'помещения')+'»…','Подготавливаем изображения');
+        pending.then(()=>{if(activeFolder!==folderId)return;finishProjectLoading();const visible=visiblePhotos();if(visible.length)selectPhoto(visible[0].index);else{clearViewer();renderList();status.textContent='В помещении пока нет изображений';}});
+        return;
+      }
+      const visible=visiblePhotos();if(visible.length)selectPhoto(visible[0].index);else{clearViewer();renderList();status.textContent='В помещении пока нет изображений';}
+    }
     function deleteFolder(folder){
       if(publicMode&&!editorMode||folders.length<=1)return;
       if(!confirm('Удалить помещение «'+folder.name+'» и все его изображения?'))return;
@@ -487,7 +497,6 @@
         const contents=photos.filter(photo=>photo.folderId===folder.id);
         const coverPhoto=contents.find(photo=>photo.type==='render'&&!isPanoramaImage(photo.image));
         const wrap=document.createElement('div');wrap.className='folder-wrap';
-        if(editorMode){wrap.draggable=true;wrap.ondragstart=e=>{e.dataTransfer.setData('text/folder',folder.id);e.dataTransfer.effectAllowed='move';};wrap.ondragover=e=>e.preventDefault();wrap.ondrop=e=>{e.preventDefault();const id=e.dataTransfer.getData('text/folder'),from=folders.findIndex(item=>item.id===id),to=folders.indexOf(folder);if(from>=0&&to>=0&&from!==to){const [moved]=folders.splice(from,1);folders.splice(to,0,moved);renderFolders();shareResult.classList.remove('open');}};}
         const button=document.createElement('button');button.className='folder-button'+(folder.id===activeFolder?' active':'');
         button.type='button';button.title=folder.name;button.setAttribute('aria-pressed',String(folder.id===activeFolder));
         const cover=document.createElement('span');cover.className='folder-cover';
@@ -536,7 +545,6 @@
       photoList.replaceChildren();
       visiblePhotos().forEach(({photo,index})=>{
         const card=document.createElement('div');card.className='photo-card';
-        if(editorMode){card.draggable=true;card.ondragstart=e=>{e.dataTransfer.setData('text/photo',String(index));e.dataTransfer.effectAllowed='move';};card.ondragover=e=>e.preventDefault();card.ondrop=e=>{e.preventDefault();const from=Number(e.dataTransfer.getData('text/photo'));if(!Number.isInteger(from)||from===index)return;const [moved]=photos.splice(from,1);const insertAt=photos.indexOf(photo);photos.splice(insertAt<0?photos.length:insertAt,0,moved);renderList();selectPhoto(photos.indexOf(moved));shareResult.classList.remove('open');};}
         const button=document.createElement('button');button.className='photo-item'+(photo.type==='panorama'?' panorama-item':'')+(index===activeIndex?' active':'');button.type='button';
         button.setAttribute('aria-label',(photo.type==='panorama'?'Панорама 360°, можно вращать: ':'Рендер: ')+photo.file.name);
         button.innerHTML='<span class="thumb-wrap"><img class="photo-thumb" alt=""><span class="media-badge"></span></span><span class="photo-name"></span>';
@@ -723,22 +731,25 @@
         const total=normalized.length;
         if(!total){finishProjectLoading();return;}
         let loaded=0;
-        for(const folder of folders){
+        const firstFolderId=folders[0]?.id||'general';
+        const loadFolder=async folder=>{
           const items=normalized.filter(p=>p.folderId===folder.id);
-          if(!items.length)continue;
-          activeFolder=folder.id;
-          setProjectLoading('Загрузка «'+folder.name+'»…',loaded+' из '+total+' изображений');
-          renderFolders();renderList();
+          if(!items.length)return;
           for(const p of items){
             try{await loadPhoto({file:{name:p.name},url:p.url,folderId:p.folderId,type:p.type});}
             catch(err){console.warn(err);}
-            loaded++;setProjectLoading('Загрузка «'+folder.name+'»…',loaded+' из '+total+' изображений');
+            loaded++;
+            if(folder.id===firstFolderId)setProjectLoading('Загрузка «'+folder.name+'»…',loaded+' из '+total+' изображений');
           }
           renderFolders();renderList();
-        }
-        activeFolder=folders[0]?.id||'general';
+        };
+        activeFolder=firstFolderId;
+        setProjectLoading('Загрузка «'+folders[0].name+'»…','0 из '+total+' изображений');
+        renderFolders();renderList();
+        await loadFolder(folders[0]);
         const first=visiblePhotos()[0];if(first)selectPhoto(first.index);else clearViewer();
         finishProjectLoading();
+        (async()=>{for(const folder of folders.slice(1)){const pending=loadFolder(folder);folderLoading.set(folder.id,pending);await pending;folderLoading.delete(folder.id);}renderFolders();renderList();})();
       }catch(err){finishProjectLoading();status.textContent='Проект не найден или ссылка устарела';console.error(err);}
     }
     renderFolders(); renderList(); resize(); loop(); loadRemoteProject();
